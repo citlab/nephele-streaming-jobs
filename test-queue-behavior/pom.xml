@@ -1,0 +1,42 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+
+        <groupId>de.tuberlin.cit</groupId>
+        <artifactId>test-queue-behavior</artifactId>
+        <version>git</version>
+
+        <name>test-queue-behavior</name>
+	<packaging>jar</packaging>
+        <inceptionYear>2014</inceptionYear>
+
+        <licenses>
+                <license>
+                        <name>The Apache Software License, Version 2.0</name>
+                        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+                        <distribution>stratosphere</distribution>
+                </license>
+        </licenses>
+
+        <developers>
+                <developer>
+                        <id>lohrmann</id>
+                        <name>Bjoern Lohrmann</name>
+                        <email>bjoern.lohrmann@tu-berlin.de</email>
+                        <organization>TU-Berlin, CIT</organization>
+                        <organizationUrl>http://www.cit.tu-berlin.de</organizationUrl>
+                        <roles>
+                                <role>Lead Developer (Stratosphere-Streaming)</role>
+                        </roles>
+                </developer>
+        </developers>
+
+	<dependencies>
+		<dependency>
+			<groupId>eu.stratosphere</groupId>
+			<artifactId>nephele-common</artifactId>
+			<version>streaming-git</version>
+		</dependency>
+	</dependencies>
+</project>
