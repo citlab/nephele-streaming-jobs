@@ -22,8 +22,9 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
  * This Nephele job is intended for non-interactive cluster experiments with
  * Nephele and designed to observe the effects of queueing.
  * 
- * This Nephele job generates numbers at an increasing rate and tests them for
- * primeness.
+ * This Nephele job generates large numbers (which is a fairly cheap operation)
+ * at an increasing rate and tests them for primeness (which is compute
+ * intensive).
  * 
  * @author Bjoern Lohrmann
  */

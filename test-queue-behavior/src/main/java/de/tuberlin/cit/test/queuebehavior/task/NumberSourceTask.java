@@ -24,31 +24,35 @@ public class NumberSourceTask extends AbstractGenericInputTask {
 
 	@Override
 	public void invoke() throws Exception {
+		int warmupPhaseDurationMillis = 30 * 1000;
+		int finalPhaseDurationMillis = 30 * 1000;
 
-		int initalEmitsPerSecond = 10;
-		int finalEmitsPerSecond = 100;
-		
-		int incrementPhaseSteps = 50;
-		int incrementPhaseDurationMillis = 200 * 1000;
+		int initalEmitsPerSecond = 500;
+		int finalEmitsPerSecond = 5000;
+
+		int incrementPhaseSteps = 20;
+		int incrementPhaseDurationMillis = 120 * 1000;
 
 		// warmup phase
 		int emitsPerSecond = initalEmitsPerSecond;
-		LOG.info(String.format("Emitting %d recs/sec for %d sec",
-				emitsPerSecond, 30));
-		doEmits(emitsPerSecond, 30);
+		LOG.info(String.format("Emitting %d recs/sec for %.1f sec",
+				emitsPerSecond, warmupPhaseDurationMillis / 1000.0));
+		doEmits(emitsPerSecond, warmupPhaseDurationMillis);
 
-		
 		// increment phase
 		long incrementBeginTime = System.currentTimeMillis();
-		
+
 		for (int i = 0; i < incrementPhaseSteps; i++) {
-			emitsPerSecond = initalEmitsPerSecond + (int) Math.round((i + 1)
-					* (finalEmitsPerSecond - initalEmitsPerSecond)
-					/ ((double) incrementPhaseSteps));
+			emitsPerSecond = initalEmitsPerSecond
+					+ (int) Math.round((i + 1)
+							* (finalEmitsPerSecond - initalEmitsPerSecond)
+							/ ((double) incrementPhaseSteps));
 
 			long now = System.currentTimeMillis();
-			long nextExpectedNow = Math.round(incrementBeginTime + (i + 1)
-					* (incrementPhaseDurationMillis / ((double) incrementPhaseSteps)));
+			long nextExpectedNow = Math
+					.round(incrementBeginTime
+							+ (i + 1)
+							* (incrementPhaseDurationMillis / ((double) incrementPhaseSteps)));
 
 			long durationMillies = nextExpectedNow - now;
 			LOG.info(String.format("Emitting %d recs/sec for %.1f sec",
@@ -58,18 +62,22 @@ public class NumberSourceTask extends AbstractGenericInputTask {
 		}
 
 		// final phase
-		LOG.info(String.format("Emitting %d recs/sec for %d sec",
-				emitsPerSecond, 30));
-		doEmits(emitsPerSecond, 30);
+		LOG.info(String.format("Emitting %d recs/sec for %.1f sec",
+				emitsPerSecond, finalPhaseDurationMillis / 1000.0));
+		doEmits(emitsPerSecond, finalPhaseDurationMillis);
 	}
 
 	private void doEmits(int emitsPerSecond, long durationMillies)
 			throws InterruptedException, IOException {
 
-		long returnTime = System.currentTimeMillis() + durationMillies;
+		long beginTime = System.currentTimeMillis();
+		long returnTime = beginTime + durationMillies;
 		int counter = 0;
 
-		int avgSleepTime = (int) (1000.0 / emitsPerSecond);
+		int sleepTime = (int) (1000.0 / emitsPerSecond);
+
+		int totalEmits = (int) Math.round(emitsPerSecond
+				* (durationMillies / 1000.0));
 		int recordsEmitted = 0;
 
 		Random rnd = new Random();
@@ -85,26 +93,30 @@ public class NumberSourceTask extends AbstractGenericInputTask {
 			this.out.emit(toEmit);
 			recordsEmitted++;
 
-			if (avgSleepTime > 0) {
-				Thread.sleep(avgSleepTime);
+			if (sleepTime > 0) {
+				Thread.sleep(sleepTime);
 			}
 
 			counter++;
-			if (counter >= 3) {
+			if (counter >= 5) {
 				counter = 0;
 
 				long now = System.currentTimeMillis();
 
 				if (now >= returnTime) {
+					double secsPassed = (now - beginTime) / 1000.0;
+					LOG.info(String
+							.format("Emitted %.1f recs/sec for records for %.1f sec (%d records total)",
+									recordsEmitted / secsPassed, secsPassed,
+									recordsEmitted));
 					break;
 				}
 
-				long expectedNow = (recordsEmitted - 1) * avgSleepTime;
-				if (now < expectedNow) {
-					Thread.sleep(expectedNow - now);
-					avgSleepTime++;
-				} else {
-					avgSleepTime = Math.max(avgSleepTime - 1, 0);
+				int expectedEmitted = (int) (totalEmits * ((now - beginTime) / ((double) durationMillies)));
+				if (recordsEmitted > expectedEmitted) {
+					sleepTime++;
+				} else if (recordsEmitted < expectedEmitted && sleepTime > 0) {
+					sleepTime--;
 				}
 
 			}
