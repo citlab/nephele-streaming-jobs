@@ -1,6 +1,7 @@
 package de.tuberlin.cit.test.queuebehavior;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import de.tuberlin.cit.test.queuebehavior.task.NumberSourceTask;
 import de.tuberlin.cit.test.queuebehavior.task.PrimeNumberTestTask;
@@ -30,58 +31,44 @@ import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
  */
 public class TestQueueBehaviorJob {
 
-	private static final String INSTANCE_TYPE = "default";
-
-	private static final int NUMBER_OF_SUBTASKS_PER_INSTANCE = 1;
-
 	public static void main(final String[] args) {
 
-		if (args.length != 1) {
-			System.err.println("Parameters: <degree of parallelism>");
+		if (args.length != 2) {
+			printUsage();
 			System.exit(1);
 			return;
 		}
-
-		int degreeOfParallelism;
-		try {
-			degreeOfParallelism = Integer.parseInt(args[0]);
-		} catch (NumberFormatException e) {
-			e.printStackTrace();
+				
+		String jmHost = args[0].split(":")[0];
+		int jmPort = Integer.parseInt(args[0].split(":")[1]);
+		
+		TestQueueBehaviorJobProfile profile = TestQueueBehaviorJobProfile.PROFILES.get(args[1]);
+		if (profile == null) {
+			System.err.printf("Unknown profile: %s\n", args[1]);
+			printUsage();
 			System.exit(1);
-			return;
-		}
-
-		if (degreeOfParallelism < 1) {
-			System.err.println("Degree of parallelism must be greater than 0");
-			System.exit(1);
-			return;
+			return;			
 		}
 
 		try {
 			final JobGraph graph = new JobGraph("Test Queue Behavior job");
 
-			final int numberOfSourceTasks = Math
-					.max(1, degreeOfParallelism / 8);
-
-			final JobInputVertex numberSource = new JobInputVertex(
-					"Number Source", graph);
+			final JobInputVertex numberSource = new JobInputVertex("Number Source", graph);
 			numberSource.setInputClass(NumberSourceTask.class);
-			numberSource.setNumberOfSubtasks(numberOfSourceTasks);
-			numberSource.setInstanceType(INSTANCE_TYPE);
-			numberSource.setNumberOfSubtasksPerInstance(1);
+			numberSource.setNumberOfSubtasks(profile.outerTaskDop);
+			numberSource.setNumberOfSubtasksPerInstance(profile.outerTaskDopPerInstance);
 
 			final JobTaskVertex primeTester = new JobTaskVertex(
 					"Prime Tester", graph);
-			primeTester.setNumberOfSubtasks(degreeOfParallelism);
 			primeTester.setTaskClass(PrimeNumberTestTask.class);
-			primeTester.setInstanceType(INSTANCE_TYPE);
-			primeTester.setNumberOfSubtasksPerInstance(NUMBER_OF_SUBTASKS_PER_INSTANCE);
+			primeTester.setElasticNumberOfSubtasks(1, profile.innerTaskDop, 1);
+			primeTester.setNumberOfSubtasksPerInstance(profile.innerTaskDopPerInstance);
 
-			final JobOutputVertex numberSink = new JobOutputVertex("Number Sink",
-					graph);
+			final JobOutputVertex numberSink = new JobOutputVertex("Number Sink", graph);
 			numberSink.setOutputClass(ReceiverTask.class);
-			numberSink.setInstanceType(INSTANCE_TYPE);
-			numberSink.setNumberOfSubtasksPerInstance(NUMBER_OF_SUBTASKS_PER_INSTANCE);
+			numberSink.setNumberOfSubtasks(profile.outerTaskDop);
+			numberSink.setNumberOfSubtasksPerInstance(profile.outerTaskDopPerInstance);
+
 
 			numberSource.connectTo(primeTester, ChannelType.NETWORK,
 					DistributionPattern.BIPARTITE);
@@ -107,9 +94,9 @@ public class TestQueueBehaviorJob {
 
 			Configuration conf = new Configuration();
 			conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
-					"127.0.0.1");
+					jmHost);
 			conf.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY,
-					ConfigConstants.DEFAULT_JOB_MANAGER_IPC_PORT);
+					jmPort);
 
 			final JobClient jobClient = new JobClient(graph, conf);
 			jobClient.submitJobAndWait();
@@ -123,4 +110,10 @@ public class TestQueueBehaviorJob {
 		} catch (InterruptedException e) {
 		}
 	}
+
+	private static void printUsage() {
+		System.err.println("Parameters: <jobmanager-host>:<port> <profile-name>");
+		System.err.printf("Available profiles: %s\n",
+				Arrays.toString(TestQueueBehaviorJobProfile.PROFILES.keySet().toArray()));
+	}	
 }
