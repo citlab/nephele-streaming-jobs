@@ -22,7 +22,7 @@ public class PrimeNumberTestTask extends AbstractTask {
 	public void invoke() throws Exception {
 		while (in.hasNext()) {
 			NumberRecord num = this.in.next();
-			if (num.getNumber().isProbablePrime(50)) {
+			if (num.getNumber().isProbablePrime(100)) {
 				num.setPrimeness(Primeness.PRIME);
 			} else {
 				num.setPrimeness(Primeness.NOT_PRIME);

@@ -18,6 +18,7 @@ import eu.stratosphere.nephele.jobgraph.JobGraphDefinitionException;
 import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
+import eu.stratosphere.nephele.streaming.ConstraintUtil;
 
 /**
  * This Nephele job is intended for non-interactive cluster experiments with
@@ -55,19 +56,21 @@ public class TestQueueBehaviorJob {
 
 			final JobInputVertex numberSource = new JobInputVertex("Number Source", graph);
 			numberSource.setInputClass(NumberSourceTask.class);
-			numberSource.setNumberOfSubtasks(profile.outerTaskDop);
-			numberSource.setNumberOfSubtasksPerInstance(profile.outerTaskDopPerInstance);
+			numberSource.getConfiguration().setString(NumberSourceTask.PROFILE_PROPERTY_KEY, profile.name);
+			numberSource.setNumberOfSubtasks(profile.paraProfile.outerTaskDop);
+			numberSource.setNumberOfSubtasksPerInstance(profile.paraProfile.outerTaskDopPerInstance);
 
 			final JobTaskVertex primeTester = new JobTaskVertex(
 					"Prime Tester", graph);
 			primeTester.setTaskClass(PrimeNumberTestTask.class);
-			primeTester.setElasticNumberOfSubtasks(1, profile.innerTaskDop, 1);
-			primeTester.setNumberOfSubtasksPerInstance(profile.innerTaskDopPerInstance);
+			primeTester.setElasticNumberOfSubtasks(1, profile.paraProfile.innerTaskDop, 1);
+//			primeTester.setNumberOfSubtasks(profile.innerTaskDop);
+			primeTester.setNumberOfSubtasksPerInstance(profile.paraProfile.innerTaskDopPerInstance);
 
 			final JobOutputVertex numberSink = new JobOutputVertex("Number Sink", graph);
 			numberSink.setOutputClass(ReceiverTask.class);
-			numberSink.setNumberOfSubtasks(profile.outerTaskDop);
-			numberSink.setNumberOfSubtasksPerInstance(profile.outerTaskDopPerInstance);
+			numberSink.setNumberOfSubtasks(profile.paraProfile.outerTaskDop);
+			numberSink.setNumberOfSubtasksPerInstance(profile.paraProfile.outerTaskDopPerInstance);
 
 
 			numberSource.connectTo(primeTester, ChannelType.NETWORK,
@@ -75,9 +78,9 @@ public class TestQueueBehaviorJob {
 			primeTester.connectTo(numberSink, ChannelType.NETWORK,
 					DistributionPattern.BIPARTITE);
 
-			// ConstraintUtil.defineAllLatencyConstraintsBetween(
-			// fileStreamSource.getForwardConnection(0),
-			// decoder.getForwardConnection(0), 100);
+			ConstraintUtil.defineAllLatencyConstraintsBetween(
+					numberSource.getForwardConnection(0),
+					primeTester.getForwardConnection(0), 100);
 
 			// Configure instance sharing when executing locally
 			primeTester.setVertexToShareInstancesWith(numberSource);
