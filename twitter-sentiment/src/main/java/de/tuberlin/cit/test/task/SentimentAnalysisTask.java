@@ -20,7 +20,8 @@ public class SentimentAnalysisTask extends IocTask {
 	}
 
 	@ReadFromWriteTo(readerIndex = 0, writerIndices = 0)
-	public void analyzeSentiment(JsonNodeRecord record, Collector<StringRecord> out) throws IOException, InterruptedException {
+	public void analyzeSentiment(JsonNodeRecord record, Collector<StringRecord> out)
+			throws IOException, InterruptedException {
 		JsonNode jsonNode = record.getJsonNode();
 		String tweetText = jsonNode.get("text").asText();
 		String tweetId = jsonNode.get("id").asText();

@@ -1,8 +1,6 @@
 package de.tuberlin.cit.test.task;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import de.tuberlin.cit.test.record.JsonNodeRecord;
+import de.tuberlin.cit.test.record.StringRecord;
 import eu.stratosphere.nephele.fs.FSDataInputStream;
 import eu.stratosphere.nephele.fs.FileInputSplit;
 import eu.stratosphere.nephele.fs.FileSystem;
@@ -14,15 +12,13 @@ import java.util.Iterator;
 
 /**
  * A file line reader reads the associated file input splits line by line and outputs the lines as json records.
- *
  */
-public class FileJsonReader extends AbstractFileInputTask {
-	private RecordWriter<JsonNodeRecord> output;
-	private ObjectMapper objectMapper = new ObjectMapper();
+public class FileLineReader extends AbstractFileInputTask {
+	private RecordWriter<StringRecord> output;
 
 	@Override
 	public void registerInputOutput() {
-		output = new RecordWriter<JsonNodeRecord>(this, JsonNodeRecord.class);
+		output = new RecordWriter<StringRecord>(this, StringRecord.class);
 	}
 
 	@Override
@@ -44,8 +40,7 @@ public class FileJsonReader extends AbstractFileInputTask {
 
 			byte[] line;
 			while ((line = lineReader.readLine()) != null) {
-				JsonNode jsonNode = objectMapper.readValue(line, JsonNode.class);
-				output.emit(new JsonNodeRecord(jsonNode));
+				output.emit(new StringRecord(line));
 			}
 
 			lineReader.close();

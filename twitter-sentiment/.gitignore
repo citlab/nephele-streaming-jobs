@@ -3,6 +3,6 @@
 .classpath
 .project
 
-# Intellij IDEA
+# IntelliJ IDEA
 .idea
 *.iml

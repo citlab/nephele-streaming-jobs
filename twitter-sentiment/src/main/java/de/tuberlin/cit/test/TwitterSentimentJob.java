@@ -1,8 +1,10 @@
 package de.tuberlin.cit.test;
 
-import de.tuberlin.cit.test.task.FileJsonReader;
+import de.tuberlin.cit.test.task.FileLineReader;
 import de.tuberlin.cit.test.task.FileLineWriter;
 import de.tuberlin.cit.test.task.FilterTask;
+import de.tuberlin.cit.test.task.HotTopicsRecognitionTask;
+import de.tuberlin.cit.test.task.JsonConverterTask;
 import de.tuberlin.cit.test.task.SentimentAnalysisTask;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -33,9 +35,17 @@ public class TwitterSentimentJob {
 		JobGraph jobGraph = new JobGraph("twitter sentiment");
 
 		final JobFileInputVertex input = new JobFileInputVertex("input", jobGraph);
-		input.setFileInputClass(FileJsonReader.class);
+		input.setFileInputClass(FileLineReader.class);
 		input.setFilePath(new Path("file://" + tweetsFolder));
 		input.setNumberOfSubtasks(1);
+
+		final JobTaskVertex jsonConverterTask = new JobTaskVertex("json", jobGraph);
+		jsonConverterTask.setTaskClass(JsonConverterTask.class);
+		jsonConverterTask.setNumberOfSubtasks(1);
+
+		final JobTaskVertex hotTopicsTask = new JobTaskVertex("hot topics", jobGraph);
+		hotTopicsTask.setTaskClass(HotTopicsRecognitionTask.class);
+		hotTopicsTask.setNumberOfSubtasks(1);
 
 		final JobTaskVertex filterTask = new JobTaskVertex("filter", jobGraph);
 		filterTask.setTaskClass(FilterTask.class);
@@ -53,7 +63,10 @@ public class TwitterSentimentJob {
 
 		try {
 
-			input.connectTo(filterTask, ChannelType.INMEMORY);
+			input.connectTo(jsonConverterTask, ChannelType.INMEMORY);
+			jsonConverterTask.connectTo(hotTopicsTask, ChannelType.INMEMORY);
+			jsonConverterTask.connectTo(filterTask, ChannelType.INMEMORY);
+			hotTopicsTask.connectTo(filterTask, ChannelType.INMEMORY);
 			filterTask.connectTo(sentimentAnalysisTask, ChannelType.INMEMORY);
 			sentimentAnalysisTask.connectTo(output, ChannelType.INMEMORY);
 
@@ -85,7 +98,6 @@ public class TwitterSentimentJob {
 		Configuration conf = new Configuration();
 		conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY, jmHost);
 		conf.setInteger(ConfigConstants.JOB_MANAGER_IPC_PORT_KEY, jmPort);
-
 
 
 		try {
