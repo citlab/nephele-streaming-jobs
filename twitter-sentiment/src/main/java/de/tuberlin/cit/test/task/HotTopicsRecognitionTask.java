@@ -23,21 +23,29 @@ import java.util.Map;
 import java.util.Queue;
 
 public class HotTopicsRecognitionTask extends IocTask {
-	private static final int HISTORY_SIZE = 50000;
-	private static final int TOP_COUNT = 20;
-	private Map<String, Integer> hashtagCount = new HashMap<String, Integer>();
-	private Queue<ArrayNode> hashtagHistory = new ArrayDeque<ArrayNode>(HISTORY_SIZE);
+	public static final String HISTORY_SIZE = "hottopicsrecognition.historysize";
+	public static final int DEFAULT_HISTORY_SIZE = 50000;
+	public static final String TOP_COUNT = "hottopicsrecognition.topcount";
+	public static final int DEFAULT_TOP_COUNT = 20;
+	private Queue<ArrayNode> hashtagHistory;
+	private Map<String, Integer> hashtagCount;
 
 	@Override
 	protected void setup() {
 		initReader(0, JsonNodeRecord.class);
 		initWriter(0, StringListRecord.class);
 
+		int historySize = this.getTaskConfiguration().getInteger(HISTORY_SIZE, DEFAULT_HISTORY_SIZE);
+		int topCount = this.getTaskConfiguration().getInteger(TOP_COUNT, DEFAULT_TOP_COUNT);
+
+		hashtagHistory = new ArrayDeque<ArrayNode>(historySize);
+		hashtagCount  = new HashMap<String, Integer>(topCount);
+
 		// fill dummy history
 		ObjectMapper objectMapper = new ObjectMapper();
 		ObjectNode dataTable = objectMapper.createObjectNode();
 		ArrayNode dummy = dataTable.putArray("dummy");
-		for (int i = 0; i < HISTORY_SIZE; i++) {
+		for (int i = 0; i < historySize; i++) {
 			hashtagHistory.offer(dummy);
 		}
 	}
@@ -97,7 +105,8 @@ public class HotTopicsRecognitionTask extends IocTask {
 		});
 		List<String> topicList = new ArrayList<String>();
 		Iterator<String> iterator = sortedHashtagCount.keySet().iterator();
-		for (int i = 0; i < TOP_COUNT; i++) {
+		int topCount = this.getTaskConfiguration().getInteger(TOP_COUNT, DEFAULT_TOP_COUNT);
+		for (int i = 0; i < topCount; i++) {
 			if (!iterator.hasNext()) {
 				break;
 			}
@@ -123,7 +132,8 @@ public class HotTopicsRecognitionTask extends IocTask {
 		System.out.println("Hashtag Ranking");
 		for (Map.Entry<String, Integer> stringIntegerEntry : sortedHashtagCount.entrySet()) {
 			System.out.printf("%s (%d)\n", stringIntegerEntry.getKey(), stringIntegerEntry.getValue());
-			if (++i == TOP_COUNT) {
+			int topCount = this.getTaskConfiguration().getInteger(TOP_COUNT, DEFAULT_TOP_COUNT);
+			if (++i == topCount) {
 				return;
 			}
 		}

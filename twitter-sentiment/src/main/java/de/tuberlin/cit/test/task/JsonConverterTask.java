@@ -21,8 +21,7 @@ public class JsonConverterTask extends IocTask {
 	}
 
 	@ReadFromWriteTo(readerIndex = 0, writerIndices = {0, 1})
-	public void convertToJson(StringRecord record, Collector<JsonNodeRecord> out1, Collector<JsonNodeRecord> out2)
-			throws IOException {
+	public void convertToJson(StringRecord record, Collector<JsonNodeRecord> out1, Collector<JsonNodeRecord> out2) throws IOException {
 		JsonNodeRecord jsonNodeRecord = new JsonNodeRecord(objectMapper.readValue(record.toString(), JsonNode.class));
 		out1.collect(jsonNodeRecord);
 		out2.collect(jsonNodeRecord);

@@ -32,9 +32,14 @@ public class FilterTask extends IocTask {
 			return;
 		}
 
+		if (topics.size() == 0) {
+			out.collect(record);
+			return;
+		}
+
 		ArrayNode hashtags = (ArrayNode) jsonNode.get("entities").get("hashtags");
 		for (JsonNode hashtag : hashtags) {
-			if (topics.contains(hashtag.asText().toLowerCase())) {
+			if (topics.contains(hashtag.get("text").asText().toLowerCase())) {
 				out.collect(record);
 			}
 		}
