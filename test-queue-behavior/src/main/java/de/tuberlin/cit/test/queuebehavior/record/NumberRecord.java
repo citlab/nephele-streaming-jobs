@@ -16,6 +16,8 @@ public class NumberRecord extends AbstractTaggableRecord {
 	private BigInteger number;
 	
 	private Primeness primeness;
+	
+	private long timestamp;
 
 	public NumberRecord() {
 		this.primeness = Primeness.UNKNOWN;
@@ -37,12 +39,21 @@ public class NumberRecord extends AbstractTaggableRecord {
 		this.primeness = primeness;
 	}
 
+	public long getTimestamp() {
+		return timestamp;
+	}
+
+	public void setTimestamp(long timestamp) {
+		this.timestamp = timestamp;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void write(final DataOutput out) throws IOException {
 		super.write(out);
+		out.writeLong(timestamp);
 		byte[] numByte = this.number.toByteArray();
 		out.writeInt(numByte.length);
 		out.write(numByte);
@@ -55,6 +66,7 @@ public class NumberRecord extends AbstractTaggableRecord {
 	@Override
 	public void read(final DataInput in) throws IOException {
 		super.read(in);
+		timestamp = in.readLong();
 		byte[] numByte = new byte[in.readInt()];
 		in.readFully(numByte);
 		this.number = new BigInteger(numByte);

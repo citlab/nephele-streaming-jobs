@@ -9,7 +9,7 @@ public class TestQueueBehaviorJobProfile {
 		public final String name;
 		
 		/**
-		 * Degree of parallelism of inner tasks (decoder, merger, overlay, encoder)
+		 * Degree of parallelism of inner tasks
 		 */
 		public final int innerTaskDop;
 
@@ -124,6 +124,12 @@ public class TestQueueBehaviorJobProfile {
 			this.decrementPhaseSteps = decrementPhaseSteps;
 		}
 		
+		
+		public long getTotalDuration() {
+			return warmupPhaseDurationMillis + incrementPhaseDurationMillis
+					+ plateauPhaseDurationMillis + decrementPhaseDurationMillis
+					+ finalPhaseDurationMillis;
+		}
 	}
 	
 	public final String name;

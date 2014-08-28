@@ -38,6 +38,16 @@
 			<artifactId>nephele-common</artifactId>
 			<version>cloudcom-git</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.storm</groupId>
+			<artifactId>storm-core</artifactId>
+			<version>0.9.2-incubating</version>
+		</dependency>
+		<dependency> 
+  			<groupId>org.slf4j</groupId>
+  			<artifactId>slf4j-log4j12</artifactId>
+ 			<version>1.6.5</version>
+		</dependency>
 	</dependencies>
 	
 	<build>

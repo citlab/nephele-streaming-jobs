@@ -5,7 +5,7 @@ import java.util.Arrays;
 
 import de.tuberlin.cit.test.queuebehavior.task.NumberSourceTask;
 import de.tuberlin.cit.test.queuebehavior.task.PrimeNumberTestTask;
-import de.tuberlin.cit.test.queuebehavior.task.ReceiverTask;
+import de.tuberlin.cit.test.queuebehavior.task.LatencyLoggerTask;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.client.JobExecutionException;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
@@ -63,12 +63,12 @@ public class TestQueueBehaviorJob {
 			final JobTaskVertex primeTester = new JobTaskVertex(
 					"Prime Tester", graph);
 			primeTester.setTaskClass(PrimeNumberTestTask.class);
-			primeTester.setElasticNumberOfSubtasks(1, profile.paraProfile.innerTaskDop, 1);
-//			primeTester.setNumberOfSubtasks(profile.innerTaskDop);
+//			primeTester.setElasticNumberOfSubtasks(20, profile.paraProfile.innerTaskDop, 20);
+			primeTester.setNumberOfSubtasks(profile.paraProfile.innerTaskDop);
 			primeTester.setNumberOfSubtasksPerInstance(profile.paraProfile.innerTaskDopPerInstance);
 
 			final JobOutputVertex numberSink = new JobOutputVertex("Number Sink", graph);
-			numberSink.setOutputClass(ReceiverTask.class);
+			numberSink.setOutputClass(LatencyLoggerTask.class);
 			numberSink.setNumberOfSubtasks(profile.paraProfile.outerTaskDop);
 			numberSink.setNumberOfSubtasksPerInstance(profile.paraProfile.outerTaskDopPerInstance);
 
@@ -93,7 +93,11 @@ public class TestQueueBehaviorJob {
 				System.exit(1);
 			}
 
+			String uHome = System.getProperty("user.home");
+			
 			graph.addJar(new Path("target/test-queue-behavior-git.jar"));
+			graph.addJar(new Path(uHome + "/.m2/repository/org/slf4j/slf4j-log4j12/1.6.5/slf4j-log4j12-1.6.5.jar"));
+			graph.addJar(new Path(uHome + "/.m2/repository/org/slf4j/slf4j-api/1.6.5/slf4j-api-1.6.5.jar"));			
 
 			Configuration conf = new Configuration();
 			conf.setString(ConfigConstants.JOB_MANAGER_IPC_ADDRESS_KEY,
