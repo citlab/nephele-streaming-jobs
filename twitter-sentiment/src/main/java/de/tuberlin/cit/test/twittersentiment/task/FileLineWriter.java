@@ -1,6 +1,6 @@
-package de.tuberlin.cit.test.task;
+package de.tuberlin.cit.test.twittersentiment.task;
 
-import de.tuberlin.cit.test.record.StringRecord;
+import de.tuberlin.cit.test.twittersentiment.record.StringRecord;
 import eu.stratosphere.nephele.fs.FSDataOutputStream;
 import eu.stratosphere.nephele.fs.FileStatus;
 import eu.stratosphere.nephele.fs.FileSystem;

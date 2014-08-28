@@ -1,11 +1,11 @@
-package de.tuberlin.cit.test;
+package de.tuberlin.cit.test.twittersentiment;
 
-import de.tuberlin.cit.test.task.FileLineWriter;
-import de.tuberlin.cit.test.task.FilterTask;
-import de.tuberlin.cit.test.task.HotTopicsRecognitionTask;
-import de.tuberlin.cit.test.task.JsonConverterTask;
-import de.tuberlin.cit.test.task.SentimentAnalysisTask;
-import de.tuberlin.cit.test.task.SimpleNetworkStreamSourceTask;
+import de.tuberlin.cit.test.twittersentiment.task.FileLineWriter;
+import de.tuberlin.cit.test.twittersentiment.task.FilterTask;
+import de.tuberlin.cit.test.twittersentiment.task.HotTopicsRecognitionTask;
+import de.tuberlin.cit.test.twittersentiment.task.JsonConverterTask;
+import de.tuberlin.cit.test.twittersentiment.task.SentimentAnalysisTask;
+import de.tuberlin.cit.test.twittersentiment.task.SimpleNetworkStreamSourceTask;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -114,6 +114,6 @@ public class TwitterSentimentJob {
 	}
 
 	private static void printUsage() {
-		System.err.println("Parameters: <jobmanager-host>:<port> <tweets-folder> <output-file>");
+		System.err.println("Parameters: <jobmanager-host>:<port> <output-file>");
 	}
 }

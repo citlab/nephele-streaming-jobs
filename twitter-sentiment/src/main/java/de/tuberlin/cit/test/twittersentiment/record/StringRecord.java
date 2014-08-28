@@ -1,4 +1,4 @@
-package de.tuberlin.cit.test.record;
+package de.tuberlin.cit.test.twittersentiment.record;
 
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
 
@@ -10,15 +10,15 @@ public class StringRecord extends AbstractTaggableRecord {
 	private String str;
 
 	public StringRecord() {
-		this.str = "";
+		this("");
+	}
+
+	public StringRecord(byte[] bytes) {
+		this(new String(bytes));
 	}
 
 	public StringRecord(String str) {
 		this.str = str;
-	}
-
-	public StringRecord(byte[] bytes) {
-		this.str = new String(bytes);
 	}
 
 	@Override

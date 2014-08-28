@@ -1,4 +1,4 @@
-package de.tuberlin.cit.test.util;
+package de.tuberlin.cit.test.twittersentiment.util;
 
 import com.aliasi.classify.ConditionalClassification;
 import com.aliasi.classify.LMClassifier;

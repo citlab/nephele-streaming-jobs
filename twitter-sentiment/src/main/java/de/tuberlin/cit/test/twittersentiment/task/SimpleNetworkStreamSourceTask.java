@@ -1,6 +1,6 @@
-package de.tuberlin.cit.test.task;
+package de.tuberlin.cit.test.twittersentiment.task;
 
-import de.tuberlin.cit.test.record.StringRecord;
+import de.tuberlin.cit.test.twittersentiment.record.StringRecord;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractGenericInputTask;
 
@@ -12,7 +12,6 @@ import java.net.Socket;
 
 public class SimpleNetworkStreamSourceTask extends AbstractGenericInputTask {
 	private RecordWriter<StringRecord> out;
-	private BufferedReader in;
 	public static final String TCP_SERVER_PORT = "simplenetworkstreamsourcetask.tcpserverport";
 	public static final int DEFAULT_TCP_SERVER_PORT = 9000;
 
@@ -23,31 +22,28 @@ public class SimpleNetworkStreamSourceTask extends AbstractGenericInputTask {
 
 	@Override
 	public void invoke() throws Exception {
-		ServerSocket serverSocket = null;
-		Socket socket = null;
+		ServerSocket serverSocket;
+		Socket socket;
+		BufferedReader in;
 
-		if (in == null) {
-			try {
-				serverSocket = new ServerSocket(
-						this.getTaskConfiguration().getInteger(TCP_SERVER_PORT, DEFAULT_TCP_SERVER_PORT));
-				socket = serverSocket.accept();
-				in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		try {
+			serverSocket = new ServerSocket(this.getTaskConfiguration().getInteger(TCP_SERVER_PORT,
+					DEFAULT_TCP_SERVER_PORT));
+			socket = serverSocket.accept();
+			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+		} catch (IOException e) {
+			e.printStackTrace();
+			return;
 		}
 
 		String line;
 		while ((line = in.readLine()) != null) {
 			out.emit(new StringRecord(line));
 		}
+
 		out.flush();
 		in.close();
-		if (socket != null) {
-			socket.close();
-		}
-		if (serverSocket != null) {
-			serverSocket.close();
-		}
+		socket.close();
+		serverSocket.close();
 	}
 }

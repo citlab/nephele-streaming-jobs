@@ -1,9 +1,9 @@
-package de.tuberlin.cit.test.task;
+package de.tuberlin.cit.test.twittersentiment.task;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import de.tuberlin.cit.test.record.JsonNodeRecord;
-import de.tuberlin.cit.test.record.StringListRecord;
+import de.tuberlin.cit.test.twittersentiment.record.JsonNodeRecord;
+import de.tuberlin.cit.test.twittersentiment.record.StringListRecord;
 import eu.stratosphere.nephele.template.ioc.Collector;
 import eu.stratosphere.nephele.template.ioc.IocTask;
 import eu.stratosphere.nephele.template.ioc.ReadFromWriteTo;
@@ -32,11 +32,7 @@ public class FilterTask extends IocTask {
 			return;
 		}
 
-		if (topics.size() == 0) {
-			out.collect(record);
-			return;
-		}
-
+		// check if tweet is tagged with a hot topic
 		ArrayNode hashtags = (ArrayNode) jsonNode.get("entities").get("hashtags");
 		for (JsonNode hashtag : hashtags) {
 			if (topics.contains(hashtag.get("text").asText().toLowerCase())) {

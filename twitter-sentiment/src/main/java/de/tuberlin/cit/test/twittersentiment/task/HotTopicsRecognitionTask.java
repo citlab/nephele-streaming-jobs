@@ -1,11 +1,11 @@
-package de.tuberlin.cit.test.task;
+package de.tuberlin.cit.test.twittersentiment.task;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import de.tuberlin.cit.test.record.JsonNodeRecord;
-import de.tuberlin.cit.test.record.StringListRecord;
+import de.tuberlin.cit.test.twittersentiment.record.JsonNodeRecord;
+import de.tuberlin.cit.test.twittersentiment.record.StringListRecord;
 import eu.stratosphere.nephele.template.ioc.Collector;
 import eu.stratosphere.nephele.template.ioc.IocTask;
 import eu.stratosphere.nephele.template.ioc.ReadFromWriteTo;
@@ -66,16 +66,6 @@ public class HotTopicsRecognitionTask extends IocTask {
 		JsonNode jsonNode = record.getJsonNode();
 		ArrayNode hashtags = (ArrayNode) jsonNode.get("entities").get("hashtags");
 
-		// update hashtag count
-		for (JsonNode hashtag : hashtags) {
-			String text = hashtag.get("text").asText().toLowerCase();
-			Integer count = hashtagCount.get(text);
-			if (count == null) {
-				count = 0;
-			}
-			hashtagCount.put(text, count + 1);
-		}
-
 		if (hashtags.size() != 0) {
 			// forget history
 			ArrayNode oldHashtags = hashtagHistory.poll();
@@ -92,6 +82,15 @@ public class HotTopicsRecognitionTask extends IocTask {
 				}
 			}
 
+			// update hashtag count
+			for (JsonNode hashtag : hashtags) {
+				String text = hashtag.get("text").asText().toLowerCase();
+				Integer count = hashtagCount.get(text);
+				if (count == null) {
+					count = 0;
+				}
+				hashtagCount.put(text, count + 1);
+			}
 			hashtagHistory.offer(hashtags);
 		}
 
@@ -106,10 +105,7 @@ public class HotTopicsRecognitionTask extends IocTask {
 		List<String> topicList = new ArrayList<String>();
 		Iterator<String> iterator = sortedHashtagCount.keySet().iterator();
 		int topCount = this.getTaskConfiguration().getInteger(TOP_COUNT, DEFAULT_TOP_COUNT);
-		for (int i = 0; i < topCount; i++) {
-			if (!iterator.hasNext()) {
-				break;
-			}
+		for (int i = 0; i < topCount && iterator.hasNext(); i++) {
 			topicList.add(iterator.next());
 		}
 		out.collect(new StringListRecord(topicList));

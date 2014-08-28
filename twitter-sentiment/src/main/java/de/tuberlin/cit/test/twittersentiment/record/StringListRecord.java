@@ -1,4 +1,4 @@
-package de.tuberlin.cit.test.record;
+package de.tuberlin.cit.test.twittersentiment.record;
 
 import eu.stratosphere.nephele.types.AbstractTaggableRecord;
 

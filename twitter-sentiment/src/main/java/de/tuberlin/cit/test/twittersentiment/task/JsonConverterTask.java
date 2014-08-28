@@ -1,9 +1,9 @@
-package de.tuberlin.cit.test.task;
+package de.tuberlin.cit.test.twittersentiment.task;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.tuberlin.cit.test.record.JsonNodeRecord;
-import de.tuberlin.cit.test.record.StringRecord;
+import de.tuberlin.cit.test.twittersentiment.record.JsonNodeRecord;
+import de.tuberlin.cit.test.twittersentiment.record.StringRecord;
 import eu.stratosphere.nephele.template.ioc.Collector;
 import eu.stratosphere.nephele.template.ioc.IocTask;
 import eu.stratosphere.nephele.template.ioc.ReadFromWriteTo;
