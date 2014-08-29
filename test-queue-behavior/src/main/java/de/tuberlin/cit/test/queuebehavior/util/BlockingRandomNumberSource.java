@@ -47,7 +47,7 @@ public class BlockingRandomNumberSource {
 		this.profile = profile;
 		currPhase = LoadGenPhase.INITIAL_SLEEP;
 		currPhaseStep = 0;
-		currPhaseStepBeginTime = System.currentTimeMillis();
+		currPhaseStepBeginTime = -1;
 		currPhaseStepEndTime = -1;
 	}
 
@@ -62,16 +62,19 @@ public class BlockingRandomNumberSource {
 			ret = nextTimestampedNumberBlocking(now, tsNum);
 		} else {
 			if (currPhase == LoadGenPhase.INITIAL_SLEEP) {
+				// need to set this because configurePhaseStep() depends on it
+				currPhaseStepEndTime = now + 5000;
 				Thread.sleep(5000);
-				now = System.currentTimeMillis();
 				// now in warmup phase
-				transitionToNextPhase(now);
+				transitionToNextPhase();
+				
+				now = System.currentTimeMillis();
 				ret = nextTimestampedNumberBlocking(now, tsNum);
 			} else if (currPhase == LoadGenPhase.DONE) {
 				Thread.sleep(100);
 			} else {
 				logStepStats(now);
-				transitionToNextPhase(now);
+				transitionToNextPhase();
 				ret = nextTimestampedNumberBlocking(now, tsNum);
 			}
 		}
@@ -79,35 +82,35 @@ public class BlockingRandomNumberSource {
 		return ret;
 	}
 
-	private void transitionToNextPhase(long now) throws InterruptedException {
+	private void transitionToNextPhase() throws InterruptedException {
 		switch (currPhase) {
 		case INITIAL_SLEEP:
 			initWarmupPhase(System.currentTimeMillis());
 			break;
 		case WARMUP:
-			initIncrementPhase(now);
+			initIncrementPhase();
 			break;
 		case INCREMENT:
 			currPhaseStep++;
 			if(currPhaseStep < currPhaseTotalSteps) {
-				initCurrIncrementStep(now);
+				initCurrIncrementStep();
 			} else {
-				initPlateauPhase(now);
+				initPlateauPhase();
 			}
 			break;
 		case PLATEAU:
-			initDecrementPhase(now);
+			initDecrementPhase();
 			break;
 		case DECREMENT:
 			currPhaseStep++;
 			if(currPhaseStep < currPhaseTotalSteps) {
-				initCurrDecrementStep(now);
+				initCurrDecrementStep();
 			} else {
-				initCooldownPhase(now);
+				initCooldownPhase();
 			}
 			break;
 		case COOLDOWN:
-			initDonePhase(now);
+			initDonePhase();
 			break;
 		case DONE:
 			break;
@@ -116,31 +119,31 @@ public class BlockingRandomNumberSource {
 		}		
 	}
 
-	private void initDonePhase(long now) {
+	private void initDonePhase() {
 		currPhase = LoadGenPhase.DONE;
 		currPhaseTotalSteps = -1;
 		currPhaseStep = -1;
 		
-		currPhaseStepBeginTime = now;
+		currPhaseStepBeginTime = System.currentTimeMillis();
 		currPhaseStepEndTime = -1;
 	}
 
-	private void initCooldownPhase(long now) {
+	private void initCooldownPhase() {
 		currPhase = LoadGenPhase.COOLDOWN;
 		currPhaseTotalSteps = 1;
 		currPhaseStep = 0;
-		configurePhaseStep(now, profile.finalPhaseDurationMillis,
+		configurePhaseStep(profile.finalPhaseDurationMillis,
 				profile.minEmitsPerSecond);
 	}
 
-	private void initDecrementPhase(long now) {
+	private void initDecrementPhase() {
 		currPhase = LoadGenPhase.DECREMENT;
 		currPhaseTotalSteps = profile.decrementPhaseSteps;
 		currPhaseStep = 0;
-		initCurrDecrementStep(now);		
+		initCurrDecrementStep();		
 	}
 
-	private void initCurrDecrementStep(long now) {
+	private void initCurrDecrementStep() {
 		long stepDuration = profile.decrementPhaseDurationMillis
 				/ currPhaseTotalSteps;
 		
@@ -149,24 +152,25 @@ public class BlockingRandomNumberSource {
 								* (profile.maxEmitsPerSecond - profile.minEmitsPerSecond)
 								/ ((double) currPhaseTotalSteps));
 		
-		configurePhaseStep(now, stepDuration, stepEmitsPerSecond);		
+		configurePhaseStep(stepDuration, stepEmitsPerSecond);		
 	}
 
-	private void initPlateauPhase(long now) {
+	private void initPlateauPhase() {
 		currPhase = LoadGenPhase.PLATEAU;
 		currPhaseTotalSteps = 1;
 		currPhaseStep = 0;
-		configurePhaseStep(now, profile.plateauPhaseDurationMillis,
+		configurePhaseStep(profile.plateauPhaseDurationMillis,
 				profile.maxEmitsPerSecond);
 		
 	}
 
-	private void configurePhaseStep(long now, long stepDurationMillies,
+	private void configurePhaseStep(long stepDurationMillies,
 			int emitsPerSecond) {
 
-		currPhaseStepBeginTime = now;
+		currPhaseStepBeginTime = currPhaseStepEndTime;
+		currPhaseStepEndTime = currPhaseStepBeginTime + stepDurationMillies;
+		
 		currPhaseStepDuration = stepDurationMillies;
-		currPhaseStepEndTime = now + stepDurationMillies;
 		currPhaseStepTotalEmits = (int) Math.round(emitsPerSecond
 				* (stepDurationMillies / 1000.0));
 		currPhaseStepEmits = 0;
@@ -183,18 +187,18 @@ public class BlockingRandomNumberSource {
 		currPhase = LoadGenPhase.WARMUP;
 		currPhaseTotalSteps = 1;
 		currPhaseStep = 0;
-		configurePhaseStep(now, profile.warmupPhaseDurationMillis,
+		configurePhaseStep(profile.warmupPhaseDurationMillis,
 				profile.minEmitsPerSecond);
 	}
 
-	private void initIncrementPhase(long now) {
+	private void initIncrementPhase() {
 		currPhase = LoadGenPhase.INCREMENT;
 		currPhaseTotalSteps = profile.incrementPhaseSteps;
 		currPhaseStep = 0;
-		initCurrIncrementStep(now);
+		initCurrIncrementStep();
 	}
 
-	private void initCurrIncrementStep(long now) {
+	private void initCurrIncrementStep() {
 		long stepDuration = profile.incrementPhaseDurationMillis
 				/ currPhaseTotalSteps;
 		
@@ -203,7 +207,7 @@ public class BlockingRandomNumberSource {
 								* (profile.maxEmitsPerSecond - profile.minEmitsPerSecond)
 								/ ((double) currPhaseTotalSteps));
 		
-		configurePhaseStep(now, stepDuration, stepEmitsPerSecond);
+		configurePhaseStep(stepDuration, stepEmitsPerSecond);
 	}
 
 	private TimestampedNumber nextTimestampedNumberBlocking(long now,
