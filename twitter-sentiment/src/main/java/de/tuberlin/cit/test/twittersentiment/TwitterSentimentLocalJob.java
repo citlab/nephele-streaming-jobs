@@ -21,7 +21,7 @@ import eu.stratosphere.nephele.streaming.ConstraintUtil;
 
 import java.io.IOException;
 
-public class TwitterSentimentJob {
+public class TwitterSentimentLocalJob {
 	public static void main(String[] args) {
 		if (args.length != 2) {
 			printUsage();
@@ -38,50 +38,50 @@ public class TwitterSentimentJob {
 		final JobInputVertex networkInput = new JobInputVertex("network", jobGraph);
 		networkInput.setInputClass(SimpleNetworkStreamSourceTask.class);
 		networkInput.setNumberOfSubtasks(1);
-		networkInput.setNumberOfSubtasksPerInstance(1);
 
 		final JobTaskVertex jsonConverterTask = new JobTaskVertex("json", jobGraph);
 		jsonConverterTask.setTaskClass(JsonConverterTask.class);
-		jsonConverterTask.setElasticNumberOfSubtasks(1, 16, 1);
-		jsonConverterTask.setNumberOfSubtasksPerInstance(4);
+		jsonConverterTask.setNumberOfSubtasks(1);
 
 		final JobTaskVertex hotTopicsTask = new JobTaskVertex("hot topics", jobGraph);
 		hotTopicsTask.setTaskClass(HotTopicsRecognitionTask.class);
-		hotTopicsTask.getConfiguration().setInteger(HotTopicsRecognitionTask.HISTORY_SIZE, 10000);
-		hotTopicsTask.setElasticNumberOfSubtasks(1, 100, 16);
-		hotTopicsTask.setNumberOfSubtasksPerInstance(4);
+		hotTopicsTask.setNumberOfSubtasks(1);
+		hotTopicsTask.getConfiguration().setInteger(HotTopicsRecognitionTask.HISTORY_SIZE, 1000);
 
 		final JobTaskVertex topicsMergerTask = new JobTaskVertex("merger", jobGraph);
 		topicsMergerTask.setTaskClass(HotTopicsMergerTask.class);
 		topicsMergerTask.setNumberOfSubtasks(1);
-		topicsMergerTask.setNumberOfSubtasksPerInstance(1);
 
 		final JobTaskVertex filterTask = new JobTaskVertex("filter", jobGraph);
 		filterTask.setTaskClass(FilterTask.class);
-		filterTask.setElasticNumberOfSubtasks(1, 16, 1);
-		filterTask.setNumberOfSubtasksPerInstance(4);
+		filterTask.setNumberOfSubtasks(1);
 
 		final JobTaskVertex sentimentAnalysisTask = new JobTaskVertex("sentiment", jobGraph);
 		sentimentAnalysisTask.setTaskClass(SentimentAnalysisTask.class);
-		sentimentAnalysisTask.setElasticNumberOfSubtasks(1, 16, 1);
-		sentimentAnalysisTask.setNumberOfSubtasksPerInstance(4);
-
+		sentimentAnalysisTask.setNumberOfSubtasks(1);
 
 		final JobFileOutputVertex output = new JobFileOutputVertex("output", jobGraph);
 		output.setFileOutputClass(FileLineWriter.class);
 		output.setFilePath(new Path("file://" + outputPath));
 		output.setNumberOfSubtasks(1);
-		output.setNumberOfSubtasksPerInstance(1);
+
+
+		networkInput.setVertexToShareInstancesWith(jsonConverterTask);
+		jsonConverterTask.setVertexToShareInstancesWith(hotTopicsTask);
+		hotTopicsTask.setVertexToShareInstancesWith(topicsMergerTask);
+		topicsMergerTask.setVertexToShareInstancesWith(filterTask);
+		filterTask.setVertexToShareInstancesWith(sentimentAnalysisTask);
+		sentimentAnalysisTask.setVertexToShareInstancesWith(output);
 
 		try {
 
-			networkInput.connectTo(jsonConverterTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			jsonConverterTask.connectTo(hotTopicsTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			jsonConverterTask.connectTo(filterTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			hotTopicsTask.connectTo(topicsMergerTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			topicsMergerTask.connectTo(filterTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			filterTask.connectTo(sentimentAnalysisTask, ChannelType.NETWORK, DistributionPattern.POINTWISE);
-			sentimentAnalysisTask.connectTo(output, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+			networkInput.connectTo(jsonConverterTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+			jsonConverterTask.connectTo(hotTopicsTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+			jsonConverterTask.connectTo(filterTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+			hotTopicsTask.connectTo(topicsMergerTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+			topicsMergerTask.connectTo(filterTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+			filterTask.connectTo(sentimentAnalysisTask, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
+			sentimentAnalysisTask.connectTo(output, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
 
 			ConstraintUtil.defineAllLatencyConstraintsBetween(networkInput, output, 100);
 

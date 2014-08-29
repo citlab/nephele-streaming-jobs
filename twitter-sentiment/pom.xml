@@ -28,13 +28,13 @@
         <dependency>
             <groupId>eu.stratosphere</groupId>
             <artifactId>nephele-common</artifactId>
-            <version>streaming-git</version>
+            <version>cloudcom-git</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>eu.stratosphere</groupId>
             <artifactId>nephele-streaming</artifactId>
-            <version>streaming-git</version>
+            <version>cloudcom-git</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
