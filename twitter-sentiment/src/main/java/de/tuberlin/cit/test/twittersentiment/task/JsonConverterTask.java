@@ -1,5 +1,6 @@
 package de.tuberlin.cit.test.twittersentiment.task;
 
+import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -23,7 +24,12 @@ public class JsonConverterTask extends IocTask {
 
 	@ReadFromWriteTo(readerIndex = 0, writerIndices = {0, 1})
 	public void convertToJson(StringRecord record, Collector<JsonNodeRecord> out1, Collector<JsonNodeRecord> out2) throws IOException {
-		JsonNodeRecord jsonNodeRecord = new JsonNodeRecord(objectMapper.readValue(record.toString(), JsonNode.class));
+		JsonNodeRecord jsonNodeRecord;
+		try {
+			jsonNodeRecord = new JsonNodeRecord(objectMapper.readValue(record.toString(), JsonNode.class));
+		} catch (JsonParseException ignored) {
+			return;
+		}
 
 		JsonNode tweet = jsonNodeRecord.getJsonNode();
 
