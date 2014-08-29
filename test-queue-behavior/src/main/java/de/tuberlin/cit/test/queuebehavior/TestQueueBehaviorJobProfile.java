@@ -80,15 +80,15 @@ public class TestQueueBehaviorJobProfile {
 		public final int decrementPhaseSteps;
 		
 		public static final LoadGenerationProfile WALLY_LOAD_PROFILE = new LoadGenerationProfile("wally_load",
-				280 * 1000,
-				600 * 1000,
-				180 * 1000,
-				600 * 1000,
-				180 * 1000,
+				120 * 1000,
+				420 * 1000,
+				60 * 1000,
+				420 * 1000,
+				120 * 1000,
 				10000,
-				110000,
-				10,
-				10);
+				80000,
+				7,
+				7);
 		
 		public static final LoadGenerationProfile LOCAL_LOAD_PROFILE = new LoadGenerationProfile("local_load",
 				30 * 1000,
