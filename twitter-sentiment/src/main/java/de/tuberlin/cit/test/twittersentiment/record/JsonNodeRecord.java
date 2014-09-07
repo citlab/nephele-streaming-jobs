@@ -13,6 +13,7 @@ public class JsonNodeRecord extends AbstractTaggableRecord {
 	private ObjectMapper objectMapper = new ObjectMapper();
 
 	public JsonNodeRecord() {
+		jsonNode = objectMapper.createObjectNode();
 	}
 
 	public JsonNodeRecord(JsonNode jsonNode) {

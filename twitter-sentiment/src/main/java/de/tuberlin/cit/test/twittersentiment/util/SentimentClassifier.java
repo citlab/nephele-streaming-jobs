@@ -14,9 +14,7 @@ public class SentimentClassifier {
 		try {
 			classifier = (LMClassifier) AbstractExternalizable.readResourceObject(SentimentClassifier.class, path);
 			categories = classifier.categories();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
+		} catch (ClassNotFoundException | IOException e) {
 			e.printStackTrace();
 		}
 	}

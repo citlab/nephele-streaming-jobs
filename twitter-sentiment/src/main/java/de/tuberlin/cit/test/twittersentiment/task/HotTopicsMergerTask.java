@@ -63,13 +63,14 @@ public class HotTopicsMergerTask extends IocTask {
 			averageTopicList.put(key, sum / topicLists.size());
 		}
 
+		int topCount = (int) (topicLists.get(0).size() * 0.6);
 		averageTopicList = Utils.sortMapByEntry(averageTopicList,
 				new Comparator<Map.Entry<String, Integer>>() {
 					public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
 						return -(o1.getValue()).compareTo(o2.getValue());
 					}
 				});
-		averageTopicList = Utils.slice(averageTopicList, topicLists.get(0).size());
+		averageTopicList = Utils.slice(averageTopicList, topCount);
 
 		return averageTopicList;
 	}

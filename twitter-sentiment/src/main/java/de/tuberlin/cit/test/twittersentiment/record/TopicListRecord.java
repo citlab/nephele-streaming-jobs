@@ -12,6 +12,7 @@ public class TopicListRecord extends AbstractTaggableRecord {
 	private Map<String, Integer> map;
 
 	public TopicListRecord() {
+		map = new LinkedHashMap<>();
 	}
 
 	public TopicListRecord(Map<String, Integer> map) {
@@ -36,7 +37,7 @@ public class TopicListRecord extends AbstractTaggableRecord {
 	public void read(DataInput in) throws IOException {
 		super.read(in);
 		int size = in.readInt();
-		map = new LinkedHashMap<String, Integer>(size);
+		map = new LinkedHashMap<>(size);
 		for (int i = 0; i < size; i++) {
 			String key = in.readUTF();
 			int value = in.readInt();

@@ -4,9 +4,8 @@ import de.tuberlin.cit.test.twittersentiment.task.FileLineWriter;
 import de.tuberlin.cit.test.twittersentiment.task.FilterTask;
 import de.tuberlin.cit.test.twittersentiment.task.HotTopicsMergerTask;
 import de.tuberlin.cit.test.twittersentiment.task.HotTopicsRecognitionTask;
-import de.tuberlin.cit.test.twittersentiment.task.JsonConverterTask;
 import de.tuberlin.cit.test.twittersentiment.task.SentimentAnalysisTask;
-import de.tuberlin.cit.test.twittersentiment.task.SimpleNetworkStreamSourceTask;
+import de.tuberlin.cit.test.twittersentiment.task.TweetSourceTask;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -35,13 +34,10 @@ public class TwitterSentimentLocalJob {
 
 		JobGraph jobGraph = new JobGraph("twitter sentiment");
 
-		final JobInputVertex networkInput = new JobInputVertex("network", jobGraph);
-		networkInput.setInputClass(SimpleNetworkStreamSourceTask.class);
-		networkInput.setNumberOfSubtasks(1);
-
-		final JobTaskVertex jsonConverterTask = new JobTaskVertex("json", jobGraph);
-		jsonConverterTask.setTaskClass(JsonConverterTask.class);
-		jsonConverterTask.setNumberOfSubtasks(1);
+		final JobInputVertex input = new JobInputVertex("input", jobGraph);
+		input.setInputClass(TweetSourceTask.class);
+		input.getConfiguration().setString(TweetSourceTask.PROFILE, "local_dualcore");
+		input.setNumberOfSubtasks(1);
 
 		final JobTaskVertex hotTopicsTask = new JobTaskVertex("hot topics", jobGraph);
 		hotTopicsTask.setTaskClass(HotTopicsRecognitionTask.class);
@@ -66,8 +62,7 @@ public class TwitterSentimentLocalJob {
 		output.setNumberOfSubtasks(1);
 
 
-		networkInput.setVertexToShareInstancesWith(jsonConverterTask);
-		jsonConverterTask.setVertexToShareInstancesWith(hotTopicsTask);
+		input.setVertexToShareInstancesWith(hotTopicsTask);
 		hotTopicsTask.setVertexToShareInstancesWith(topicsMergerTask);
 		topicsMergerTask.setVertexToShareInstancesWith(filterTask);
 		filterTask.setVertexToShareInstancesWith(sentimentAnalysisTask);
@@ -75,15 +70,14 @@ public class TwitterSentimentLocalJob {
 
 		try {
 
-			networkInput.connectTo(jsonConverterTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
-			jsonConverterTask.connectTo(hotTopicsTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
-			jsonConverterTask.connectTo(filterTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+			input.connectTo(hotTopicsTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
+			input.connectTo(filterTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
 			hotTopicsTask.connectTo(topicsMergerTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
 			topicsMergerTask.connectTo(filterTask, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
 			filterTask.connectTo(sentimentAnalysisTask, ChannelType.INMEMORY, DistributionPattern.POINTWISE);
 			sentimentAnalysisTask.connectTo(output, ChannelType.INMEMORY, DistributionPattern.BIPARTITE);
 
-			ConstraintUtil.defineAllLatencyConstraintsBetween(networkInput, output, 100);
+			ConstraintUtil.defineAllLatencyConstraintsBetween(input, output, 100);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -98,9 +92,7 @@ public class TwitterSentimentLocalJob {
 				System.exit(1);
 			}
 
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
+		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
 		}
 

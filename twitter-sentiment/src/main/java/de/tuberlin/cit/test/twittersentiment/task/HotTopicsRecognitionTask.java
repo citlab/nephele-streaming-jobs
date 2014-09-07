@@ -21,9 +21,10 @@ public class HotTopicsRecognitionTask extends IocTask {
 	public static final String HISTORY_SIZE = "hottopicsrecognition.historysize";
 	public static final int DEFAULT_HISTORY_SIZE = 50000;
 	public static final String TOP_COUNT = "hottopicsrecognition.topcount";
-	public static final int DEFAULT_TOP_COUNT = 20;
+	public static final int DEFAULT_TOP_COUNT = 25;
 	public static final String TIMEOUT = "hottopicsrecognition.timeout";
 	public static final int DEFAULT_TIMEOUT = 100;
+
 	private Date lastSent = new Date();
 	private int timeout;
 	private Queue<ArrayNode> hashtagHistory;
@@ -38,12 +39,11 @@ public class HotTopicsRecognitionTask extends IocTask {
 		initWriter(0, TopicListRecord.class);
 
 		historySize = this.getTaskConfiguration().getInteger(HISTORY_SIZE, DEFAULT_HISTORY_SIZE);
-		System.out.println("History Size: " + historySize);
 		topCount = this.getTaskConfiguration().getInteger(TOP_COUNT, DEFAULT_TOP_COUNT);
 		timeout = this.getTaskConfiguration().getInteger(TIMEOUT, DEFAULT_TIMEOUT);
 
-		hashtagHistory = new ArrayDeque<ArrayNode>(historySize);
-		hashtagCount  = new HashMap<String, Integer>(topCount);
+		hashtagHistory = new ArrayDeque<>(historySize);
+		hashtagCount  = new HashMap<>(topCount);
 
 		// fill dummy history
 		ArrayNode dummy = new ObjectMapper().createArrayNode();
@@ -67,7 +67,7 @@ public class HotTopicsRecognitionTask extends IocTask {
 				if (count == null) {
 					continue;
 				}
-				if (count == 1) {
+				if (count <= 1) {
 					hashtagCount.remove(text);
 				} else {
 					hashtagCount.put(text, count - 1);
@@ -90,18 +90,17 @@ public class HotTopicsRecognitionTask extends IocTask {
 		}
 
 
-		// construct topic list
-		Map<String, Integer> sortedHashtagCount = Utils.sortMapByEntry(hashtagCount,
-				new Comparator<Map.Entry<String, Integer>>() {
-					public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
-						return -(o1.getValue()).compareTo(o2.getValue());
-					}
-				});
-		Map<String, Integer> topicList = Utils.slice(sortedHashtagCount, topCount);
-
 		// send one topic list every interval
 		Date now = new Date();
 		if (now.getTime() - lastSent.getTime() > timeout && historyWarmupCount == historySize) {
+			// construct topic list
+			Map<String, Integer> sortedHashtagCount = Utils.sortMapByEntry(hashtagCount,
+					new Comparator<Map.Entry<String, Integer>>() {
+						public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
+							return -(o1.getValue()).compareTo(o2.getValue());
+						}
+					});
+			Map<String, Integer> topicList = Utils.slice(sortedHashtagCount, topCount);
 			out.collect(new TopicListRecord(topicList));
 			lastSent = now;
 		}

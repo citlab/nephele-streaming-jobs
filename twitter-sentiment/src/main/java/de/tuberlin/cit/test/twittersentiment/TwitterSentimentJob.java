@@ -4,9 +4,8 @@ import de.tuberlin.cit.test.twittersentiment.task.FileLineWriter;
 import de.tuberlin.cit.test.twittersentiment.task.FilterTask;
 import de.tuberlin.cit.test.twittersentiment.task.HotTopicsMergerTask;
 import de.tuberlin.cit.test.twittersentiment.task.HotTopicsRecognitionTask;
-import de.tuberlin.cit.test.twittersentiment.task.JsonConverterTask;
 import de.tuberlin.cit.test.twittersentiment.task.SentimentAnalysisTask;
-import de.tuberlin.cit.test.twittersentiment.task.SimpleNetworkStreamSourceTask;
+import de.tuberlin.cit.test.twittersentiment.task.TweetSourceTask;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -35,19 +34,16 @@ public class TwitterSentimentJob {
 
 		JobGraph jobGraph = new JobGraph("twitter sentiment");
 
-		final JobInputVertex networkInput = new JobInputVertex("network", jobGraph);
-		networkInput.setInputClass(SimpleNetworkStreamSourceTask.class);
-		networkInput.setNumberOfSubtasks(1);
-		networkInput.setNumberOfSubtasksPerInstance(1);
-
-		final JobTaskVertex jsonConverterTask = new JobTaskVertex("json", jobGraph);
-		jsonConverterTask.setTaskClass(JsonConverterTask.class);
-		jsonConverterTask.setElasticNumberOfSubtasks(1, 16, 1);
-		jsonConverterTask.setNumberOfSubtasksPerInstance(4);
+		final JobInputVertex input = new JobInputVertex("input", jobGraph);
+		input.setInputClass(TweetSourceTask.class);
+		input.getConfiguration().setString(TweetSourceTask.PROFILE, "wally50");
+		input.setNumberOfSubtasks(1);
+		input.setNumberOfSubtasksPerInstance(1);
 
 		final JobTaskVertex hotTopicsTask = new JobTaskVertex("hot topics", jobGraph);
 		hotTopicsTask.setTaskClass(HotTopicsRecognitionTask.class);
-		hotTopicsTask.getConfiguration().setInteger(HotTopicsRecognitionTask.HISTORY_SIZE, 10000);
+		hotTopicsTask.getConfiguration().setInteger(HotTopicsRecognitionTask.HISTORY_SIZE, 1000);
+		hotTopicsTask.getConfiguration().setInteger(HotTopicsRecognitionTask.TOP_COUNT, 40);
 		hotTopicsTask.setElasticNumberOfSubtasks(1, 100, 16);
 		hotTopicsTask.setNumberOfSubtasksPerInstance(4);
 
@@ -58,12 +54,12 @@ public class TwitterSentimentJob {
 
 		final JobTaskVertex filterTask = new JobTaskVertex("filter", jobGraph);
 		filterTask.setTaskClass(FilterTask.class);
-		filterTask.setElasticNumberOfSubtasks(1, 16, 1);
+		filterTask.setElasticNumberOfSubtasks(1, 100, 1);
 		filterTask.setNumberOfSubtasksPerInstance(4);
 
 		final JobTaskVertex sentimentAnalysisTask = new JobTaskVertex("sentiment", jobGraph);
 		sentimentAnalysisTask.setTaskClass(SentimentAnalysisTask.class);
-		sentimentAnalysisTask.setElasticNumberOfSubtasks(1, 16, 1);
+		sentimentAnalysisTask.setElasticNumberOfSubtasks(1, 100, 1);
 		sentimentAnalysisTask.setNumberOfSubtasksPerInstance(4);
 
 
@@ -75,15 +71,14 @@ public class TwitterSentimentJob {
 
 		try {
 
-			networkInput.connectTo(jsonConverterTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			jsonConverterTask.connectTo(hotTopicsTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
-			jsonConverterTask.connectTo(filterTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+			input.connectTo(hotTopicsTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
+			input.connectTo(filterTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 			hotTopicsTask.connectTo(topicsMergerTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 			topicsMergerTask.connectTo(filterTask, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 			filterTask.connectTo(sentimentAnalysisTask, ChannelType.NETWORK, DistributionPattern.POINTWISE);
 			sentimentAnalysisTask.connectTo(output, ChannelType.NETWORK, DistributionPattern.BIPARTITE);
 
-			ConstraintUtil.defineAllLatencyConstraintsBetween(networkInput, output, 100);
+			ConstraintUtil.defineAllLatencyConstraintsBetween(filterTask, output, 10);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -98,9 +93,7 @@ public class TwitterSentimentJob {
 				System.exit(1);
 			}
 
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
+		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
 		}
 
