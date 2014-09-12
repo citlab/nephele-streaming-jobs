@@ -1,14 +1,15 @@
 package de.tuberlin.cit.test.twittersentiment.task;
 
+import java.io.IOException;
+
 import com.fasterxml.jackson.databind.JsonNode;
+
 import de.tuberlin.cit.test.twittersentiment.record.JsonNodeRecord;
-import de.tuberlin.cit.test.twittersentiment.record.StringRecord;
 import de.tuberlin.cit.test.twittersentiment.util.SentimentClassifier;
 import eu.stratosphere.nephele.template.ioc.Collector;
 import eu.stratosphere.nephele.template.ioc.IocTask;
 import eu.stratosphere.nephele.template.ioc.ReadFromWriteTo;
-
-import java.io.IOException;
+import eu.stratosphere.nephele.types.StringRecord;
 
 public class SentimentAnalysisTask extends IocTask {
 	private SentimentClassifier sentimentClassifier = new SentimentClassifier();
