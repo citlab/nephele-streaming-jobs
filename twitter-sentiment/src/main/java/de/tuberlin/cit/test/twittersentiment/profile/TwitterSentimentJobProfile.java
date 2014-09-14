@@ -1,4 +1,7 @@
-package de.tuberlin.cit.test.twittersentiment;
+package de.tuberlin.cit.test.twittersentiment.profile;
+
+import de.tuberlin.cit.test.twittersentiment.profile.task.HotTopicsRecognitionProfile;
+import de.tuberlin.cit.test.twittersentiment.profile.task.TaskProfile;
 
 import java.util.HashMap;
 
@@ -8,60 +11,42 @@ public class TwitterSentimentJobProfile {
 
 		public final String name;
 
-		/**
-		 * Degree of parallelism of inner tasks
-		 */
-		public final int innerTaskDop;
+		public final HotTopicsRecognitionProfile hotTopicsRecognition;
+		public final TaskProfile filter;
+		public final TaskProfile sentiment;
 
-		/**
-		 * Number of inner tasks per instance.
-		 */
-		public final int innerTaskDopPerInstance;
-
-		/**
-		 * Degree of parallelism for outer tasks (source, sink).
-		 */
-		public final int outerTaskDop;
-
-		/**
-		 * Number of outer tasks per instance.
-		 */
-		public final int outerTaskDopPerInstance;
-
-		public final static ParallelismProfile WALLY200_PARA_PROFILE = new ParallelismProfile(
-				"wally200_para", 800, 4, 200, 1);
-
-		public final static ParallelismProfile WALLY199_PARA_PROFILE = new ParallelismProfile(
-				"wally199_para", 796, 4, 199, 1);
 
 		public final static ParallelismProfile WALLY50_PARA_PROFILE = new ParallelismProfile(
-				"wally50_para", 200, 4, 50, 1);
+				"wally50_para",
+				new HotTopicsRecognitionProfile(100, 4, 1, 100, 16, 1000, 50),
+				new TaskProfile(100, 4, 1, 100, 16),
+				new TaskProfile(100, 4, 1, 100, 16));
 
-		public final static ParallelismProfile WALLY49_PARA_PROFILE = new ParallelismProfile(
-				"wally49_para", 196, 4, 49, 1);
 
 		public final static ParallelismProfile LOCAL_DUALCORE_PARA_PROFILE = new ParallelismProfile(
-				"local_dualcore_para", 2, 2, 1, 1);
+				"local_dualcore_para",
+				new HotTopicsRecognitionProfile(1, 4, 1, 1, 1, 500, 40),
+				new TaskProfile(1, 4, 1, 1, 1),
+				new TaskProfile(1, 4, 1, 1, 1));
 
 		public ParallelismProfile(String name,
-				int innerTaskDop,
-				int innerTaskDopPerInstance,
-				int outerTaskDop,
-				int outerTaskDopPerInstance) {
-
-			this.name = name;
-			this.innerTaskDop = innerTaskDop;
-			this.innerTaskDopPerInstance = innerTaskDopPerInstance;
-			this.outerTaskDop = outerTaskDop;
-			this.outerTaskDopPerInstance = outerTaskDopPerInstance;
+				HotTopicsRecognitionProfile hotTopicsRecognition,
+				TaskProfile filter,
+				TaskProfile sentiment) {
 
 			if (PROFILES.containsKey(name)) {
 				throw new IllegalArgumentException("Profile name " + name
 						+ " already reserved");
 			}
 
+			this.name = name;
+			this.hotTopicsRecognition = hotTopicsRecognition;
+			this.filter = filter;
+			this.sentiment = sentiment;
 		}
 	}
+
+
 
 	public static class LoadGenerationProfile {
 
@@ -140,17 +125,9 @@ public class TwitterSentimentJobProfile {
 
 	public final static HashMap<String, TwitterSentimentJobProfile> PROFILES = new HashMap<>();
 
-	public final static TwitterSentimentJobProfile WALLY200 = new TwitterSentimentJobProfile(
-			"wally200", ParallelismProfile.WALLY200_PARA_PROFILE, LoadGenerationProfile.WALLY_LOAD_PROFILE);
-
-	public final static TwitterSentimentJobProfile WALLY199 = new TwitterSentimentJobProfile(
-			"wally199", ParallelismProfile.WALLY199_PARA_PROFILE, LoadGenerationProfile.WALLY_LOAD_PROFILE);
 
 	public final static TwitterSentimentJobProfile WALLY50  = new TwitterSentimentJobProfile(
 			"wally50", ParallelismProfile.WALLY50_PARA_PROFILE, LoadGenerationProfile.WALLY_LOAD_PROFILE);
-
-	public final static TwitterSentimentJobProfile WALLY49 = new TwitterSentimentJobProfile(
-			"wally49", ParallelismProfile.WALLY49_PARA_PROFILE, LoadGenerationProfile.WALLY_LOAD_PROFILE);
 
 	public final static TwitterSentimentJobProfile LOCAL_DUALCORE = new TwitterSentimentJobProfile(
 			"local_dualcore",

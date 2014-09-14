@@ -1,7 +1,7 @@
 package de.tuberlin.cit.test.twittersentiment.util;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import de.tuberlin.cit.test.twittersentiment.TwitterSentimentJobProfile;
+import de.tuberlin.cit.test.twittersentiment.profile.TwitterSentimentJobProfile;
 import org.apache.log4j.Logger;
 
 import java.util.concurrent.ArrayBlockingQueue;

@@ -1,7 +1,7 @@
 package de.tuberlin.cit.test.twittersentiment.task;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import de.tuberlin.cit.test.twittersentiment.TwitterSentimentJobProfile;
+import de.tuberlin.cit.test.twittersentiment.profile.TwitterSentimentJobProfile;
 import de.tuberlin.cit.test.twittersentiment.record.JsonNodeRecord;
 import de.tuberlin.cit.test.twittersentiment.util.TweetSource;
 import eu.stratosphere.nephele.io.RecordWriter;
