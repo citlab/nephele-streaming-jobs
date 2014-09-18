@@ -18,9 +18,9 @@ public class TwitterSentimentJobProfile {
 
 		public final static ParallelismProfile WALLY50_PARA_PROFILE = new ParallelismProfile(
 				"wally50_para",
-				new HotTopicsRecognitionProfile(100, 4, 1, 100, 16, 1000, 50),
-				new TaskProfile(100, 4, 1, 100, 16),
-				new TaskProfile(100, 4, 1, 100, 16));
+				new HotTopicsRecognitionProfile(100, 4, 65, 5, 1, 1000, 50),
+				new TaskProfile(100, 4, 65, 2, 1),
+				new TaskProfile(100, 4, 65, 2, 1));
 
 
 		public final static ParallelismProfile LOCAL_DUALCORE_PARA_PROFILE = new ParallelismProfile(
