@@ -34,7 +34,7 @@ public class TestQueueBehaviorJob {
 
 	public static void main(final String[] args) {
 
-		if (args.length != 2) {
+		if (args.length != 3) {
 			printUsage();
 			System.exit(1);
 			return;
@@ -50,6 +50,8 @@ public class TestQueueBehaviorJob {
 			System.exit(1);
 			return;			
 		}
+		
+		String latencyLogfile = args[2];
 
 		try {
 			final JobGraph graph = new JobGraph("Test Queue Behavior job");
@@ -71,6 +73,7 @@ public class TestQueueBehaviorJob {
 			numberSink.setOutputClass(LatencyLoggerTask.class);
 			numberSink.setNumberOfSubtasks(profile.paraProfile.outerTaskDop);
 			numberSink.setNumberOfSubtasksPerInstance(profile.paraProfile.outerTaskDopPerInstance);
+			numberSink.getConfiguration().setString(LatencyLoggerTask.LATENCY_LOG_KEY , latencyLogfile);
 
 
 			numberSource.connectTo(primeTester, ChannelType.NETWORK,
@@ -80,7 +83,7 @@ public class TestQueueBehaviorJob {
 
 			ConstraintUtil.defineAllLatencyConstraintsBetween(
 					numberSource.getForwardConnection(0),
-					primeTester.getForwardConnection(0), 100);
+					primeTester.getForwardConnection(0), 20);
 
 			// Configure instance sharing when executing locally
 			primeTester.setVertexToShareInstancesWith(numberSource);
@@ -119,7 +122,7 @@ public class TestQueueBehaviorJob {
 	}
 
 	private static void printUsage() {
-		System.err.println("Parameters: <jobmanager-host>:<port> <profile-name>");
+		System.err.println("Parameters: <jobmanager-host>:<port> <profile-name> <latency-logfile");
 		System.err.printf("Available profiles: %s\n",
 				Arrays.toString(TestQueueBehaviorJobProfile.PROFILES.keySet().toArray()));
 	}	
