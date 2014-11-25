@@ -6,7 +6,7 @@ import de.tuberlin.cit.test.twittersentiment.task.HotTopicsMergerTask;
 import de.tuberlin.cit.test.twittersentiment.task.HotTopicsRecognitionTask;
 import de.tuberlin.cit.test.twittersentiment.task.SentimentAnalysisTask;
 import de.tuberlin.cit.test.twittersentiment.task.TweetSourceTask;
-import de.tuberlin.cit.test.twittersentiment.util.LoadPhaseTweetSource;
+import de.tuberlin.cit.test.twittersentiment.util.TimeBasedTweetSource;
 import eu.stratosphere.nephele.client.JobClient;
 import eu.stratosphere.nephele.configuration.ConfigConstants;
 import eu.stratosphere.nephele.configuration.Configuration;
@@ -20,9 +20,9 @@ import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.streaming.ConstraintUtil;
 
-public class TwitterSentimentJob {
+public class TwitterSentimentTimeMachineJob {
 	public static void main(String[] args) {
-		if (args.length != 3) {
+		if (args.length != 4) {
 			printUsage();
 			System.exit(1);
 			return;
@@ -32,6 +32,7 @@ public class TwitterSentimentJob {
 		int jmPort = Integer.parseInt(args[0].split(":")[1]);
 		String outputPath = args[1];
 		TwitterSentimentJobProfile profile = TwitterSentimentJobProfile.PROFILES.get(args[2]);
+		double factor = Double.parseDouble(args[3]); 
 
 		if (profile == null) {
 			System.err.printf("Unknown profile: %s\n", args[2]);
@@ -41,12 +42,15 @@ public class TwitterSentimentJob {
 		}
 
 		try {
-			JobGraph jobGraph = new JobGraph("twitter sentiment");
+			JobGraph jobGraph = new JobGraph("twitter sentiment timemachine");
 
 			final JobInputVertex input = new JobInputVertex("input", jobGraph);
 			input.setInputClass(TweetSourceTask.class);
-			input.getConfiguration().setString(TweetSourceTask.TWEET_SOURCE, LoadPhaseTweetSource.class.getSimpleName());
-			input.getConfiguration().setString(LoadPhaseTweetSource.PROFILE, profile.name);
+			input.getConfiguration().setString(TweetSourceTask.TWEET_SOURCE, TimeBasedTweetSource.class.getSimpleName());
+			input.getConfiguration().setDouble(TimeBasedTweetSource.FACTOR_KEY, factor);
+			input.getConfiguration().setBoolean(TimeBasedTweetSource.DROP_TWEETS_KEY, false); // drop tweets
+			input.getConfiguration().setLong(TimeBasedTweetSource.DROP_TIMEOUT_KEY, 1000); // if we missed the timeline by 1000ms
+			input.getConfiguration().setLong(TimeBasedTweetSource.INPUT_TIMEOUT_KEY, 2*60*1000); // finish task after 2min waiting for input
 			input.setNumberOfSubtasks(1);
 			input.setNumberOfSubtasksPerInstance(1);
 
@@ -142,6 +146,6 @@ public class TwitterSentimentJob {
 
 	private static void printUsage() {
 		System.err
-				.println("Parameters: <jobmanager-host>:<port> <output-file> <profile>");
+				.println("Parameters: <jobmanager-host>:<port> <output-file> <profile> <factor>");
 	}
 }

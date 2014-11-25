@@ -11,7 +11,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.BlockingQueue;
 
+import org.apache.log4j.Logger;
+
 public class SocketWorker implements Runnable {
+	private static final Logger LOG = Logger.getLogger(SocketWorker.class);
 	private ObjectMapper mapper = new ObjectMapper();
 	private BlockingQueue<JsonNode> queue;
 	private int port;
@@ -23,45 +26,44 @@ public class SocketWorker implements Runnable {
 
 	@Override
 	public void run() {
-		ServerSocket serverSocket;
-		Socket socket;
-		BufferedReader in;
+		ServerSocket serverSocket = null;
+		Socket socket = null;
+		BufferedReader in = null;
 
 		try {
 			serverSocket = new ServerSocket(port);
 			socket = serverSocket.accept();
 			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		} catch (IOException e) {
-			e.printStackTrace();
-			return;
-		}
 
-		String line = null;
-		do {
-			try {
-				line = in.readLine();
-
+			String line = null;
+			while ((line = in.readLine()) != null) {
 				JsonNode tweet = mapper.readValue(line, JsonNode.class);
 
 				// strip unnecessary information
 				ObjectNode filteredTweet = new ObjectMapper().createObjectNode();
-				String[] includeProperties = {"id",  "text", "lang", "entities"};
+				String[] includeProperties = { "id", "text", "lang", "entities", "created_at" };
 				for (String property : includeProperties) {
 					filteredTweet.set(property, tweet.get(property));
 				}
 
 				queue.put(filteredTweet);
-
-			} catch (InterruptedException | IOException ignored) {
 			}
-		} while (line != null);
 
-		try {
-			in.close();
-			socket.close();
-			serverSocket.close();
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOG.error("I/O error in socket worker.", e);
+
+		} catch (InterruptedException e) {
+			LOG.info("Socket worker interrupted.");
+
+		} finally {
+			try {
+				in.close();
+				socket.close();
+				serverSocket.close();
+			} catch (IOException e) {
+				LOG.error("Failed to close socket worker server port.", e);
+				e.printStackTrace();
+			}
 		}
 	}
 }
