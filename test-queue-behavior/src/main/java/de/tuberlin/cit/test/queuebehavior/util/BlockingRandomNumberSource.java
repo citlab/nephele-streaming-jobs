@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import de.tuberlin.cit.test.queuebehavior.TestQueueBehaviorJobProfile.LoadGenerationProfile;
 
 public class BlockingRandomNumberSource {
-	
+
 	private static final Logger LOG = LoggerFactory.getLogger(BlockingRandomNumberSource.class);
 
 	public static class TimestampedNumber {
@@ -22,6 +22,8 @@ public class BlockingRandomNumberSource {
 	private enum LoadGenPhase {
 		INITIAL_SLEEP, WARMUP, INCREMENT, PLATEAU, DECREMENT, COOLDOWN, DONE
 	}
+
+	private final long globalBeginTime;
 
 	private LoadGenPhase currPhase;
 
@@ -39,35 +41,58 @@ public class BlockingRandomNumberSource {
 
 	private int currPhaseStepEmits;
 
+	private final int intermediateLoggingInterval = 5000;
+
+	private long intLogLastEmits;
+
+	private long intLogLastTime;
+
+	private long intLogNextTime;
+
 	private int sleepTime = 0;
 
 	private final Random rnd = new Random();
 
-	public BlockingRandomNumberSource(LoadGenerationProfile profile) {
+	public BlockingRandomNumberSource(LoadGenerationProfile profile, long globalBeginTime) {
+		this.globalBeginTime = globalBeginTime;
+
 		this.profile = profile;
 		currPhase = LoadGenPhase.INITIAL_SLEEP;
 		currPhaseStep = 0;
 		currPhaseStepBeginTime = -1;
 		currPhaseStepEndTime = -1;
+
+		// intermediate log values
+		intLogLastTime = -1;
+		intLogNextTime = Long.MAX_VALUE;
 	}
 
 	public TimestampedNumber createRandomNumberBlocking(TimestampedNumber tsNum)
 			throws InterruptedException {
 
 		long now = System.currentTimeMillis();
-		
+
 		TimestampedNumber ret = null;
-		
+
+		logIntermediateStepStatsIfNecessary(now);
+
 		if (now < currPhaseStepEndTime) {
 			ret = nextTimestampedNumberBlocking(now, tsNum);
 		} else {
+
 			if (currPhase == LoadGenPhase.INITIAL_SLEEP) {
+
 				// need to set this because configurePhaseStep() depends on it
-				currPhaseStepEndTime = now + 5000;
-				Thread.sleep(5000);
-				// now in warmup phase
+				currPhaseStepEndTime = globalBeginTime;
+				intLogLastTime = globalBeginTime;
+
+				long initialWait = globalBeginTime - now;
+				Thread.sleep(initialWait);
+
+				// now transition to warmup phase
 				transitionToNextPhase();
-				
+
+				// now in warmup...
 				now = System.currentTimeMillis();
 				ret = nextTimestampedNumberBlocking(now, tsNum);
 			} else if (currPhase == LoadGenPhase.DONE) {
@@ -75,10 +100,13 @@ public class BlockingRandomNumberSource {
 			} else {
 				logStepStats(now);
 				transitionToNextPhase();
+
+				// now in next phase
+				now = System.currentTimeMillis();
 				ret = nextTimestampedNumberBlocking(now, tsNum);
 			}
 		}
-		
+
 		return ret;
 	}
 
@@ -116,14 +144,14 @@ public class BlockingRandomNumberSource {
 			break;
 		default:
 			throw new RuntimeException("This should never happen");
-		}		
+		}
 	}
 
 	private void initDonePhase() {
 		currPhase = LoadGenPhase.DONE;
 		currPhaseTotalSteps = -1;
 		currPhaseStep = -1;
-		
+
 		currPhaseStepBeginTime = System.currentTimeMillis();
 		currPhaseStepEndTime = -1;
 	}
@@ -140,19 +168,19 @@ public class BlockingRandomNumberSource {
 		currPhase = LoadGenPhase.DECREMENT;
 		currPhaseTotalSteps = profile.decrementPhaseSteps;
 		currPhaseStep = 0;
-		initCurrDecrementStep();		
+		initCurrDecrementStep();
 	}
 
 	private void initCurrDecrementStep() {
 		long stepDuration = profile.decrementPhaseDurationMillis
 				/ currPhaseTotalSteps;
-		
+
 		int stepEmitsPerSecond = profile.maxEmitsPerSecond
 				- (int) Math.round(currPhaseStep
 								* (profile.maxEmitsPerSecond - profile.minEmitsPerSecond)
 								/ ((double) currPhaseTotalSteps));
-		
-		configurePhaseStep(stepDuration, stepEmitsPerSecond);		
+
+		configurePhaseStep(stepDuration, stepEmitsPerSecond);
 	}
 
 	private void initPlateauPhase() {
@@ -161,7 +189,7 @@ public class BlockingRandomNumberSource {
 		currPhaseStep = 0;
 		configurePhaseStep(profile.plateauPhaseDurationMillis,
 				profile.maxEmitsPerSecond);
-		
+
 	}
 
 	private void configurePhaseStep(long stepDurationMillies,
@@ -169,18 +197,22 @@ public class BlockingRandomNumberSource {
 
 		currPhaseStepBeginTime = currPhaseStepEndTime;
 		currPhaseStepEndTime = currPhaseStepBeginTime + stepDurationMillies;
-		
+
 		currPhaseStepDuration = stepDurationMillies;
 		currPhaseStepTotalEmits = (int) Math.round(emitsPerSecond
 				* (stepDurationMillies / 1000.0));
 		currPhaseStepEmits = 0;
 		sleepTime = 0;
-		
+
+		intLogLastTime = currPhaseStepBeginTime;
+		intLogNextTime = currPhaseStepBeginTime + intermediateLoggingInterval;
+		intLogLastEmits = 0;
+
 		LOG.info(String.format("%s (step %d): Emitting %d recs/sec for %.1f sec",
 				currPhase.toString(),
 				currPhaseStep + 1,
 				emitsPerSecond, stepDurationMillies / 1000.0));
-		
+
 	}
 
 	private void initWarmupPhase(long now) {
@@ -201,12 +233,12 @@ public class BlockingRandomNumberSource {
 	private void initCurrIncrementStep() {
 		long stepDuration = profile.incrementPhaseDurationMillis
 				/ currPhaseTotalSteps;
-		
+
 		int stepEmitsPerSecond = profile.minEmitsPerSecond
 				+ (int) Math.round((currPhaseStep + 1)
 								* (profile.maxEmitsPerSecond - profile.minEmitsPerSecond)
 								/ ((double) currPhaseTotalSteps));
-		
+
 		configurePhaseStep(stepDuration, stepEmitsPerSecond);
 	}
 
@@ -241,6 +273,24 @@ public class BlockingRandomNumberSource {
 		}
 	}
 
+	private void logIntermediateStepStatsIfNecessary(long now) {
+		if (now >= intLogNextTime) {
+			if (currPhase == LoadGenPhase.DONE) {
+				return;
+			}
+
+			double secsPassed = (now - intLogLastTime) / 1000.0;
+			double actualEmitsPerSecond = (currPhaseStepEmits - intLogLastEmits) / secsPassed;
+
+			LOG.info(String.format("qb-i: %d;%d", intLogNextTime / 1000, (int) actualEmitsPerSecond));
+
+			intLogLastEmits = currPhaseStepEmits;
+			intLogLastTime = intLogNextTime;
+			intLogNextTime = intLogNextTime + intermediateLoggingInterval;
+		}
+	}
+
+
 	private void logStepStats(long now) {
 		double secsPassed = (now - currPhaseStepBeginTime) / 1000.0;
 		int attemptedEmitsPerSecond = (int) (currPhaseStepTotalEmits / ((currPhaseStepEndTime - currPhaseStepBeginTime) / 1000.0));
@@ -250,7 +300,7 @@ public class BlockingRandomNumberSource {
 				.format("%s (step %d): Emitted %.1f recs/sec for %.1f sec (%d records total)",
 						currPhase.toString(),
 						currPhaseStep + 1,
-						actualEmitsPerSecond, 
+						actualEmitsPerSecond,
 						secsPassed,
 						currPhaseStepEmits));
 

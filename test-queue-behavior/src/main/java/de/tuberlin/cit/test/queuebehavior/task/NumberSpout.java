@@ -17,22 +17,23 @@ public class NumberSpout extends BaseRichSpout {
 	
 	private static final long serialVersionUID = 1L;
 
-	public static final String PROFILE_PROPERTY_KEY = "numberspout.profile";
-	
-    private SpoutOutputCollector collector;
+  private SpoutOutputCollector collector;
     
-	private String profileName;
+	private final String profileName;
+
+	private final long globalBeginTime;
 
 	private transient BlockingRandomNumberSource numberSource;
 
 	private transient TimestampedNumber numHolder;
 
     public NumberSpout() {
-        this("local_dualcore");
+        this("local_dualcore", 0);
     }
 
-    public NumberSpout(String profileName) {
+    public NumberSpout(String profileName, long globalBeginTime) {
     	this.profileName = profileName;
+	    this.globalBeginTime = globalBeginTime;
     }
         
 	@SuppressWarnings("rawtypes")
@@ -41,7 +42,7 @@ public class NumberSpout extends BaseRichSpout {
 		
 		this.collector = collector;
 		LoadGenerationProfile profile = TestQueueBehaviorJobProfile.PROFILES.get(profileName).loadGenProfile;
-		this.numberSource = new BlockingRandomNumberSource(profile);
+		this.numberSource = new BlockingRandomNumberSource(profile, globalBeginTime);
 		this.numHolder = new TimestampedNumber();
 	}
     
@@ -57,6 +58,7 @@ public class NumberSpout extends BaseRichSpout {
 						.toByteArray()));
 			}
 		} catch (InterruptedException e) {
+			// do nothing
 		}
 	}
     
