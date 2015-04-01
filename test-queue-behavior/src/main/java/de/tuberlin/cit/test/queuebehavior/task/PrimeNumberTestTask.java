@@ -2,6 +2,7 @@ package de.tuberlin.cit.test.queuebehavior.task;
 
 import de.tuberlin.cit.test.queuebehavior.record.NumberRecord;
 import de.tuberlin.cit.test.queuebehavior.record.NumberRecord.Primeness;
+import eu.stratosphere.nephele.io.ChannelSelector;
 import eu.stratosphere.nephele.io.RecordReader;
 import eu.stratosphere.nephele.io.RecordWriter;
 import eu.stratosphere.nephele.template.AbstractTask;
@@ -14,8 +15,18 @@ public class PrimeNumberTestTask extends AbstractTask {
 
 	@Override
 	public void registerInputOutput() {
-		this.in = new RecordReader<NumberRecord>(this, NumberRecord.class);
-		this.out = new RecordWriter<NumberRecord>(this, NumberRecord.class);
+		this.in = new RecordReader<>(this, NumberRecord.class);
+
+		final double x = getIndexInSubtaskGroup() / (double) getCurrentNumberOfSubtasks();
+		this.out = new RecordWriter<>(this, NumberRecord.class, new ChannelSelector<NumberRecord>() {
+			final int[] ret = new int[1];
+
+			@Override
+			public int[] selectChannels(NumberRecord record, int numberOfOutputChannels) {
+				ret[0] = (int) (x * numberOfOutputChannels);
+				return ret;
+			}
+		});
 	}
 
 	@Override
