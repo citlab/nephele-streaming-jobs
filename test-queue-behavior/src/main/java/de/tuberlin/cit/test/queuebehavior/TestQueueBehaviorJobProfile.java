@@ -35,7 +35,7 @@ public class TestQueueBehaviorJobProfile {
 				"wally199_para", 796, 4, 199, 1);
 		
 		public final static ParallelismProfile WALLY50_PARA_PROFILE = new ParallelismProfile(
-				"wally50_para", 200, 4, 40, 1);
+				"wally50_para", 200, 4, 50, 1);
 		
 		public final static ParallelismProfile WALLY49_PARA_PROFILE = new ParallelismProfile(
 				"wally49_para", 196, 4, 49, 1);
