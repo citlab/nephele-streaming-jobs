@@ -9,23 +9,37 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class TopicListRecord extends AbstractTaggableRecord {
-	private Map<String, Integer> map;
+	private int senderId;
 
-	public TopicListRecord() {
-		map = new LinkedHashMap<>();
+	private Map<String, Integer> map;
+	private long srcTimestamp;
+
+	public TopicListRecord(long srcTimestamp, int senderId, Map<String, Integer> topicList) {
+		this.map = topicList;
+		this.srcTimestamp = srcTimestamp;
+		this.senderId = senderId;
 	}
 
-	public TopicListRecord(Map<String, Integer> map) {
-		this.map = map;
+	public TopicListRecord() {
 	}
 
 	public Map<String, Integer> getMap() {
 		return map;
 	}
 
+	public int getSenderId() {
+		return senderId;
+	}
+
+	public long getSrcTimestamp() {
+		return srcTimestamp;
+	}
+
 	@Override
 	public void write(DataOutput out) throws IOException {
 		super.write(out);
+		out.writeInt(senderId);
+		out.writeLong(srcTimestamp);
 		out.writeInt(map.entrySet().size());
 		for (Map.Entry<String, Integer> entry : map.entrySet()) {
 			out.writeUTF(entry.getKey());
@@ -36,6 +50,8 @@ public class TopicListRecord extends AbstractTaggableRecord {
 	@Override
 	public void read(DataInput in) throws IOException {
 		super.read(in);
+		senderId = in.readInt();
+		srcTimestamp = in.readLong();
 		int size = in.readInt();
 		map = new LinkedHashMap<>(size);
 		for (int i = 0; i < size; i++) {

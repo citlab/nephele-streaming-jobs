@@ -2,68 +2,89 @@ package de.tuberlin.cit.test.twittersentiment.task;
 
 import de.tuberlin.cit.test.twittersentiment.record.TopicListRecord;
 import de.tuberlin.cit.test.twittersentiment.util.Utils;
+import eu.stratosphere.nephele.io.DefaultChannelSelector;
 import eu.stratosphere.nephele.template.ioc.Collector;
 import eu.stratosphere.nephele.template.ioc.IocTask;
 import eu.stratosphere.nephele.template.ioc.ReadFromWriteTo;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class HotTopicsMergerTask extends IocTask {
+
 	public static final String TIMEOUT = "topicsmerger.timeout";
 	public static final int DEFAULT_TIMEOUT = 200;
-	private Date lastSent = new Date();
+	private final Map<Integer, TopicListRecord> topicLists = new HashMap<>();
 	private int timeout;
-	private List<Map<String, Integer>> topicLists = new ArrayList<Map<String, Integer>>();
+	private int copiesToBroadcast = 1;
+
+	private long nextForwardDeadline;
+	private long minSrcTimestamp = Long.MAX_VALUE;
+	private long maxSrcTimestamp = Long.MIN_VALUE;
+
 
 	@Override
 	protected void setup() {
 		initReader(0, TopicListRecord.class);
-		initWriter(0, TopicListRecord.class);
+		initWriter(0, TopicListRecord.class, new DefaultChannelSelector<TopicListRecord>() {
+			@Override
+			public int[] selectChannels(TopicListRecord record, int numberOfOutputChannels) {
+				copiesToBroadcast = numberOfOutputChannels;
+				return super.selectChannels(record, numberOfOutputChannels);
+			}
+		});
 
 		timeout = this.getTaskConfiguration().getInteger(TIMEOUT, DEFAULT_TIMEOUT);
+		nextForwardDeadline = Utils.alignToInterval(System.currentTimeMillis() + timeout, timeout);
+		resetTimestamps();
+	}
+
+	private void resetTimestamps() {
+		minSrcTimestamp = Long.MAX_VALUE;
+		maxSrcTimestamp = Long.MIN_VALUE;
 	}
 
 	@ReadFromWriteTo(readerIndex = 0, writerIndices = 0)
 	public void mergeTopicLists(TopicListRecord record, Collector<TopicListRecord> out) {
-		topicLists.add(record.getMap());
+		topicLists.put(record.getSenderId(), record);
 
-		Date now = new Date();
-		if (now.getTime() - lastSent.getTime() > timeout) {
-			Map<String, Integer> averageTopicList = getAverageTopicList();
-			out.collect(new TopicListRecord(averageTopicList));
-			lastSent = now;
-			printRanking(averageTopicList);
-			topicLists.clear();
+		minSrcTimestamp = Math.min(minSrcTimestamp, record.getSrcTimestamp());
+		maxSrcTimestamp = Math.max(maxSrcTimestamp, record.getSrcTimestamp());
+
+		if (System.currentTimeMillis() >= nextForwardDeadline) {
+			if (!topicLists.isEmpty()) {
+				TopicListRecord averageTopicList = getMergedTopicList();
+				for (int i = 0; i < copiesToBroadcast; i++) {
+					out.collect(averageTopicList);
+				}
+
+				// printRanking(averageTopicList);
+				topicLists.clear();
+				resetTimestamps();
+			}
+
+			nextForwardDeadline += timeout;
 		}
 	}
 
-	private Map<String, Integer> getAverageTopicList() {
-		Set<String> keys = new HashSet<String>();
+	private TopicListRecord getMergedTopicList() {
 		Map<String, Integer> averageTopicList = new HashMap<String, Integer>();
 
-		for (Map<String, Integer> topicList : topicLists) {
-			keys.addAll(topicList.keySet());
-		}
+		int topCount = 0;
+		for (TopicListRecord topicList : topicLists.values()) {
+			for(Map.Entry<String, Integer> entry : topicList.getMap().entrySet()) {
+				String hashtag = entry.getKey();
+				int newCount = entry.getValue();
 
-		for (String key : keys) {
-			int sum = 0;
-			for (Map<String, Integer> topicList : topicLists) {
-				Integer count = topicList.get(key);
-				if (count != null) {
-					sum += count;
+				Integer oldCount = averageTopicList.get(hashtag);
+				if(oldCount != null) {
+					newCount += oldCount;
 				}
+
+				averageTopicList.put(hashtag, newCount);
 			}
-			averageTopicList.put(key, sum / topicLists.size());
+			topCount = Math.max(topCount, topicList.getMap().size());
 		}
 
-		int topCount = (int) (topicLists.get(0).size() * 0.6);
 		averageTopicList = Utils.sortMapByEntry(averageTopicList,
 				new Comparator<Map.Entry<String, Integer>>() {
 					public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
@@ -72,7 +93,7 @@ public class HotTopicsMergerTask extends IocTask {
 				});
 		averageTopicList = Utils.slice(averageTopicList, topCount);
 
-		return averageTopicList;
+		return new TopicListRecord((minSrcTimestamp + maxSrcTimestamp) / 2, 0, averageTopicList);
 	}
 
 	private void printRanking(Map<String, Integer> sortedHashtagCount) {

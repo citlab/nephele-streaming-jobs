@@ -45,8 +45,10 @@ public class TweetSourceTask extends AbstractGenericInputTask {
 		JsonNode tweet;
 
 		while ((tweet = source.getTweet()) != null) {
-			out1.emit(new JsonNodeRecord(tweet));
-			out2.emit(new JsonNodeRecord(tweet));
+			long srcTimestamp = System.currentTimeMillis();
+			JsonNodeRecord record = new JsonNodeRecord(tweet, srcTimestamp);
+			out1.emit(record);
+			out2.emit(record);
 		}
 
 		source.shutdown(); // shutdown input thread and close socket

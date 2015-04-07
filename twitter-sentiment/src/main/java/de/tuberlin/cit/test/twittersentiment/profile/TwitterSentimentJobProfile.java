@@ -18,9 +18,11 @@ public class TwitterSentimentJobProfile {
 
 		public final static ParallelismProfile WALLY50_PARA_PROFILE = new ParallelismProfile(
 				"wally50_para",
-				new HotTopicsRecognitionProfile(100, 4, 65, 5, 1, 1000, 50),
-				new TaskProfile(100, 4, 65, 2, 1),
-				new TaskProfile(100, 4, 65, 2, 1));
+				// amountSubstasks, subtasksPerInstance, maximumAmountSubtasks, initalAmountSubtasks, minimumAmountSubtasks, historySize, topCount
+				new HotTopicsRecognitionProfile(100, 4, 100, 5, 1, 100000, 2000),
+				// amountSubstasks, subtasksPerInstance, maximumAmountSubtasks, initalAmountSubtasks, minimumAmountSubtasks
+				new TaskProfile(100, 4, 100, 5, 3), // filter
+				new TaskProfile(100, 4, 100, 5, 1)); // sentiment
 
 
 		public final static ParallelismProfile LOCAL_DUALCORE_PARA_PROFILE = new ParallelismProfile(
@@ -70,8 +72,8 @@ public class TwitterSentimentJobProfile {
 				60 * 1000,
 				420 * 1000,
 				30 * 1000,
-				500,
-				12000,
+				3000,
+				3000,
 				7,
 				7);
 

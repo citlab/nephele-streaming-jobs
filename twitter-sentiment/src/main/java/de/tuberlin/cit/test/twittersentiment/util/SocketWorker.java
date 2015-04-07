@@ -1,5 +1,6 @@
 package de.tuberlin.cit.test.twittersentiment.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -37,16 +38,20 @@ public class SocketWorker implements Runnable {
 
 			String line = null;
 			while ((line = in.readLine()) != null) {
-				JsonNode tweet = mapper.readValue(line, JsonNode.class);
+				try {
+					JsonNode tweet = mapper.readValue(line, JsonNode.class);
 
-				// strip unnecessary information
-				ObjectNode filteredTweet = new ObjectMapper().createObjectNode();
-				String[] includeProperties = { "id", "text", "lang", "entities", "created_at" };
-				for (String property : includeProperties) {
-					filteredTweet.set(property, tweet.get(property));
+					// strip unnecessary information
+					ObjectNode filteredTweet = new ObjectMapper().createObjectNode();
+					String[] includeProperties = {"id", "text", "lang", "entities", "created_at"};
+					for (String property : includeProperties) {
+						filteredTweet.set(property, tweet.get(property));
+					}
+
+					queue.put(filteredTweet);
+				} catch (JsonProcessingException e) {
+					LOG.error("Error processing JSON", e);
 				}
-
-				queue.put(filteredTweet);
 			}
 
 		} catch (IOException e) {

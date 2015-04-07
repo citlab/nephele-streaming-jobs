@@ -43,4 +43,11 @@ public class Utils {
 		}
 		return slicedMap;
 	}
+
+	public static long alignToInterval(long timestampInMillis, long interval) {
+		long remainder = timestampInMillis % interval;
+
+		return timestampInMillis - remainder;
+	}
+
 }
