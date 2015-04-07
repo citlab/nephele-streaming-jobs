@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
@@ -13,7 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class LatencyLog {
-	public static final int LOG_INTERVAL_MILLIS = 10000;
+	public static final int LOG_INTERVAL_MILLIS = 5000;
 
 	private static final Logger LOG = LoggerFactory.getLogger(LatencyLog.class);
 
@@ -23,7 +24,7 @@ public class LatencyLog {
 
 	private long aggregatedLatencies;
 
-	private int counter;
+	private int sampleCounter;
 
 	private long minLatency;
 
@@ -35,51 +36,86 @@ public class LatencyLog {
 
 	private double sampleProb = 0.1;
 
+	private final Random rnd;
+
 	public LatencyLog(String file) throws IOException {
 		out = new FileWriter(file);
-		out.write("timestamp;avgLatency;minLatency;maxLatency;perc25;perc50;perc75;perc80;perc90;perc95;perc99\n");
+		out.write("timestamp;samples;avgLatency;minLatency;maxLatency;perc25;perc50;perc75;perc80;perc90;perc95;perc99\n");
 		out.flush();
 
 		nextLogIntervalBegin = alignToInterval(System.currentTimeMillis() + LOG_INTERVAL_MILLIS,
 						LOG_INTERVAL_MILLIS);
 
+		rnd = ThreadLocalRandom.current();
 		reset();
 	}
 
 	private void reset() {
 		aggregatedLatencies = 0;
-		counter = 0;
+		sampleCounter = 0;
 		minLatency = Long.MAX_VALUE;
 		maxLatency = Long.MIN_VALUE;
 		latencies = new ArrayList<>();
 	}
 
 	public void log(long timestamp) {
-		long now = System.currentTimeMillis();
+		if (rnd.nextDouble() < sampleProb) {
+			long now = System.currentTimeMillis();
+			long latency = Math.max(0, now - timestamp);
 
-		long latency = Math.max(0, now - timestamp);
-
-		aggregatedLatencies += latency;
-		counter++;
-		minLatency = Math.min(minLatency, latency);
-		maxLatency = Math.max(maxLatency, latency);
-
-		if (ThreadLocalRandom.current().nextDouble() < sampleProb) {
+			sampleCounter++;
+			aggregatedLatencies += latency;
+			minLatency = Math.min(minLatency, latency);
+			maxLatency = Math.max(maxLatency, latency);
 			latencies.add(latency);
-		}
 
-		if (now >= nextLogIntervalBegin) {
-			final String logLine = String.format("%d;%.1f;%d;%d",
-							nextLogIntervalBegin / 2000,
-							((double) aggregatedLatencies) / counter,
-							minLatency, maxLatency);
-//			sampleProb = Math.max(0.01, Math.min(1, (1000.0 / latencies.size()) * sampleProb));
-			backgroundWorker.submit(createLogWorker(logLine, latencies, out));
-			reset();
+			if (now >= nextLogIntervalBegin) {
+				String logLine = createLogLine();
 
-			while (nextLogIntervalBegin <= now) {
-				nextLogIntervalBegin += LOG_INTERVAL_MILLIS;
+				backgroundWorker.submit(createLogWorker(logLine, out));
+				sampleProb = Math.max(0.001, Math.min(1, (20000.0 / latencies.size()) * sampleProb));
+				reset();
+
+				while (nextLogIntervalBegin <= now) {
+					nextLogIntervalBegin += LOG_INTERVAL_MILLIS;
+				}
 			}
+		}
+	}
+
+	private String createLogLine() {
+		String logLine = String.format("%d;%d;%.1f;%d;%d;",
+						nextLogIntervalBegin / 1000,
+						sampleCounter,
+						((double) aggregatedLatencies) / sampleCounter,
+						minLatency, maxLatency);
+		Collections.sort(latencies);
+
+		long percentile25 = getQuantileFromSortedList(latencies, 0.25);
+		long percentile50 = getQuantileFromSortedList(latencies, 0.5);
+		long percentile75 = getQuantileFromSortedList(latencies, 0.75);
+		long percentile80 = getQuantileFromSortedList(latencies, 0.8);
+		long percentile90 = getQuantileFromSortedList(latencies, 0.9);
+		long percentile95 = getQuantileFromSortedList(latencies, 0.95);
+		long percentile99 = getQuantileFromSortedList(latencies, 0.99);
+
+		logLine += String.format("%d;%d;%d;%d;%d;%d;%d\n",
+						percentile25,
+						percentile50,
+						percentile75,
+						percentile80,
+						percentile90,
+						percentile95,
+						percentile99);
+
+		return logLine;
+	}
+
+	private long getQuantileFromSortedList(ArrayList<Long> latencies, double quantile) {
+		if (latencies.isEmpty()) {
+			return 0;
+		} else {
+			return latencies.get((int) Math.floor(quantile * latencies.size()));
 		}
 	}
 
@@ -97,43 +133,19 @@ public class LatencyLog {
 		return timestampInMillis - remainder;
 	}
 
-	private static Runnable createLogWorker(final String logLine, final ArrayList<Long> latencies, final Writer out) {
+	private static Runnable createLogWorker(final String logLine, final Writer out) {
 		return new Runnable() {
 			@Override
 			public void run() {
 				try {
-					Collections.sort(latencies);
-
-					long percentile25 = getQuantileFromSortedList(latencies, 0.25);
-					long percentile50 = getQuantileFromSortedList(latencies, 0.5);
-					long percentile75 = getQuantileFromSortedList(latencies, 0.75);
-					long percentile80 = getQuantileFromSortedList(latencies, 0.8);
-					long percentile90 = getQuantileFromSortedList(latencies, 0.9);
-					long percentile95 = getQuantileFromSortedList(latencies, 0.95);
-					long percentile99 = getQuantileFromSortedList(latencies, 0.99);
-
-					String actualLogLine = logLine + String.format("%d;%d;%d;%d;%d;%d;%d\n",
-									percentile25,
-									percentile50,
-									percentile75,
-									percentile80,
-									percentile90,
-									percentile95,
-									percentile99);
-					out.write(actualLogLine);
+					out.write(logLine);
 					out.flush();
 				} catch (IOException e) {
 					LOG.error("Error when writing to receiver latency log", e);
 				}
 			}
 
-			private long getQuantileFromSortedList(ArrayList<Long> latencies, double quantile) {
-				if (latencies.isEmpty()) {
-					return 0;
-				} else {
-					return latencies.get((int) Math.floor(quantile * latencies.size()));
-				}
-			}
+
 		};
 	}
 
