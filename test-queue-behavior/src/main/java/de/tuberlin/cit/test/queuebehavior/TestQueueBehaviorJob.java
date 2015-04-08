@@ -60,8 +60,10 @@ public class TestQueueBehaviorJob {
 			numberSource.getConfiguration().setString(NumberSourceTask.PROFILE_PROPERTY_KEY, profile.name);
 			numberSource.getConfiguration().setLong(NumberSourceTask.GLOBAL_BEGIN_TIME_PROPERTY_KEY,
 							Util.alignToInterval(System.currentTimeMillis(), 1000) + 30000);
-			numberSource.setNumberOfSubtasks(profile.paraProfile.outerTaskDop);
-			numberSource.setNumberOfSubtasksPerInstance(profile.paraProfile.outerTaskDopPerInstance);
+			numberSource.setNumberOfSubtasks(32);
+			numberSource.setNumberOfSubtasksPerInstance(4);
+//			numberSource.setNumberOfSubtasks(profile.paraProfile.outerTaskDop);
+//			numberSource.setNumberOfSubtasksPerInstance(profile.paraProfile.outerTaskDopPerInstance);
 
 			final JobTaskVertex primeTester = new JobTaskVertex(
 							"Prime Tester", graph);
@@ -73,14 +75,21 @@ public class TestQueueBehaviorJob {
 				int initial = Integer.parseInt(cli.getOptionValue("elastic").split(":")[1]);
 				int max = Integer.parseInt(cli.getOptionValue("elastic").split(":")[2]);
 				primeTester.setElasticNumberOfSubtasks(min, max, initial);
+			} else if (cli.hasOption("unelastic")) {
+				primeTester.setNumberOfSubtasks(Integer.parseInt(cli.getOptionValue("unelastic")));
 			} else {
 				primeTester.setNumberOfSubtasks(profile.paraProfile.innerTaskDop);
 			}
 
 			final JobOutputVertex numberSink = new JobOutputVertex("Number Sink", graph);
 			numberSink.setOutputClass(LatencyLoggerTask.class);
-			numberSink.setNumberOfSubtasks(profile.paraProfile.outerTaskDop);
 			numberSink.setNumberOfSubtasksPerInstance(profile.paraProfile.outerTaskDopPerInstance);
+			if (cli.hasOption("elastic")) {
+				int primeTesterMax = Integer.parseInt(cli.getOptionValue("elastic").split(":")[2]);
+				numberSink.setNumberOfSubtasks(primeTesterMax / primeTester.getNumberOfSubtasksPerInstance());
+			} else {
+				numberSink.setNumberOfSubtasks(profile.paraProfile.outerTaskDop);
+			}
 			numberSink.getConfiguration().setString(LatencyLoggerTask.LATENCY_LOG_KEY, latencyLogfile);
 
 			numberSource.connectTo(primeTester, ChannelType.NETWORK,
@@ -96,8 +105,8 @@ public class TestQueueBehaviorJob {
 							primeTester.getForwardConnection(0), constraintMs);
 
 			// Configure instance sharing when executing locally
-			primeTester.setVertexToShareInstancesWith(numberSource);
-			numberSink.setVertexToShareInstancesWith(numberSource);
+//			primeTester.setVertexToShareInstancesWith(numberSource);
+			numberSink.setVertexToShareInstancesWith(primeTester);
 
 			addJars(cli, graph);
 

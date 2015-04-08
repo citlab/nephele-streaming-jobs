@@ -19,6 +19,12 @@ public class CliHelper {
 						.isRequired(false)
 						.create("elastic"));
 
+		options.addOption(OptionBuilder.withArgName("<dop>")
+						.hasArg()
+						.withDescription("Specifies a fixed PrimeTester degree of parallelism")
+						.isRequired(false)
+						.create("unelastic"));
+
 		options.addOption(OptionBuilder.withArgName("directory")
 						.hasArg()
 						.withDescription("Specifies a directory with jar files to attach to the JobGraph. Unless " +
