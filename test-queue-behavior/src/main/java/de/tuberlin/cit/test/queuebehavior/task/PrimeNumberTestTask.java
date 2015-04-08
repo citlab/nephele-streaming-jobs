@@ -19,11 +19,13 @@ public class PrimeNumberTestTask extends AbstractTask {
 
 		final double x = getIndexInSubtaskGroup() / (double) getCurrentNumberOfSubtasks();
 		this.out = new RecordWriter<>(this, NumberRecord.class, new ChannelSelector<NumberRecord>() {
-			final int[] ret = new int[1];
+			int[] ret;
 
 			@Override
 			public int[] selectChannels(NumberRecord record, int numberOfOutputChannels) {
-				ret[0] = (int) (x * numberOfOutputChannels);
+				if (ret == null) {
+					ret = new int[]{(int) (x * numberOfOutputChannels)};
+				}
 				return ret;
 			}
 		});
