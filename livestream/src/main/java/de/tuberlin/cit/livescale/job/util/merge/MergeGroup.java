@@ -76,6 +76,7 @@ public final class MergeGroup {
 		g.fillRect(0, 0, width, height);
 
 		final int sqrt = (int) Math.ceil(Math.sqrt(videoFrames.length));
+		long minTimestamp = Long.MAX_VALUE;
 		for (int i = 0; i < videoFrames.length; ++i) {
 
 			final int imageWidth = (width - (sqrt + 1) * BORDER) / sqrt;
@@ -90,9 +91,12 @@ public final class MergeGroup {
 			g.drawImage(videoFrames[i].frameImage, imageX, imageY, imageX + imageWidth, imageY + imageHeight, 0, 0,
 				width, height, null);
 
+			minTimestamp = Math.min(minTimestamp, videoFrames[i].getTimestamp());
+
 		}
 
 		videoFrames[0].frameImage = mergedFrame;
+		videoFrames[0].timestamp = minTimestamp;
 
 		return videoFrames[0];
 	}

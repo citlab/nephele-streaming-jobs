@@ -1,4 +1,4 @@
-package de.tuberlin.cit.livescale.job;
+package de.tuberlin.cit.livescale;
 
 import org.apache.commons.cli.BasicParser;
 import org.apache.commons.cli.CommandLine;
@@ -23,6 +23,12 @@ public class CliHelper {
 						.withDescription("Degree of parallelism of inner tasks (Decoder, Merger, etc)")
 						.isRequired(true)
 						.create("innerDop"));
+
+		options.addOption(OptionBuilder.withArgName("<innerDopPerInstance>")
+						.hasArg()
+						.withDescription("Number of inner tasks per Task Manager (Decoder, Merger, etc)")
+						.isRequired(true)
+						.create("innerDopPerInstance"));
 
 		options.addOption(OptionBuilder.withArgName("<outerDop>")
 						.hasArg()

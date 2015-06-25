@@ -3,9 +3,7 @@ package de.tuberlin.cit.livescale;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.util.Arrays;
 
-import de.tuberlin.cit.livescale.job.CliHelper;
 import de.tuberlin.cit.livescale.job.task.BroadcasterTask;
 import de.tuberlin.cit.livescale.job.task.DecoderTask;
 import de.tuberlin.cit.livescale.job.task.EncoderTask;
@@ -26,6 +24,7 @@ import eu.stratosphere.nephele.jobgraph.JobInputVertex;
 import eu.stratosphere.nephele.jobgraph.JobOutputVertex;
 import eu.stratosphere.nephele.jobgraph.JobTaskVertex;
 import eu.stratosphere.nephele.streaming.ConstraintUtil;
+import eu.stratosphere.nephele.streaming.SamplingStrategy;
 import org.apache.commons.cli.CommandLine;
 
 /**
@@ -49,7 +48,7 @@ public class LivescaleParallelJob {
 		int jmPort = Integer.parseInt(cli.getOptionValue("jmaddress").split(":")[1]);
 		
 		LivescaleParallelJobProfile profile = new LivescaleParallelJobProfile("custom",
-						Integer.parseInt(cli.getOptionValue("innerDop")), 4,
+						Integer.parseInt(cli.getOptionValue("innerDop")), Integer.parseInt(cli.getOptionValue("innerDopPerInstance")),
 						Integer.parseInt(cli.getOptionValue("outerDop")), 1,
 						Integer.parseInt(cli.getOptionValue("streams")),
 						Integer.parseInt(cli.getOptionValue("groupSize")));
@@ -114,6 +113,8 @@ public class LivescaleParallelJob {
 			ConstraintUtil.defineAllLatencyConstraintsBetween(
 					fileStreamSource.getForwardConnection(0),
 					encoder.getForwardConnection(0), Integer.parseInt(cli.getOptionValue("constraint")));
+
+			ConstraintUtil.setSamplingStrategyForConstrainedVertex(graph, merger, SamplingStrategy.READ_WRITE);
 
 			// Configure instance sharing
 			decoder.setVertexToShareInstancesWith(fileStreamSource);
